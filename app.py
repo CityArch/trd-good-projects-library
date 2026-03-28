@@ -33,8 +33,8 @@ if "search_active" not in st.session_state:
     st.session_state.search_active = False
 if "submitted_projects" not in st.session_state:
     st.session_state.submitted_projects = []
-if "current_submission_cats" not in st.session_state:
-    st.session_state.current_submission_cats = []
+if "temp_cats" not in st.session_state:
+    st.session_state.temp_cats = []
 
 df_raw = load_data()
 
@@ -60,7 +60,6 @@ if search_mode == "Single-Action Search":
                 c3 = st.sidebar.selectbox("3. Specific Focus (L3)", l3_opts, key=f"s3_{st.session_state.reset_key}")
                 if c3 != "All": final_l3 = [c3]
 else:
-    # Multi-Action Search
     all_l1 = sorted([str(x) for x in df_raw['Level1'].dropna().unique()])
     final_l1 = st.sidebar.multiselect("Categories (L1)", all_l1, key=f"m1_{st.session_state.reset_key}")
     all_l2 = sorted([str(x) for x in df_raw['Level2'].dropna().unique()])
@@ -70,7 +69,7 @@ else:
 
 if st.sidebar.button("🚀 Run Search", use_container_width=True, type="primary"):
     st.session_state.search_active = True
-if st.sidebar.button("🧹 Clear", use_container_width=True):
+if st.sidebar.button("🧹 Clear Search", use_container_width=True):
     st.session_state.reset_key += 1
     st.session_state.search_active = False
     st.rerun()
@@ -94,7 +93,7 @@ if st.session_state.search_active or q_search:
             m_ids = df_raw.groupby('Project ID').filter(check_match)['Project ID'].unique()
             df = df_raw[df_raw['Project ID'].isin(m_ids)]
 
-    st.subheader(f"Results: {len(df)} Entries")
+    st.subheader(f"Results: {len(df)} Entries Found")
     cols = st.columns(3)
     for idx, (i, row) in enumerate(df.iterrows()):
         with cols[idx % 3]:
@@ -106,11 +105,11 @@ if st.session_state.search_active or q_search:
 else:
     st.info("👈 Use the sidebar to explore the library.")
 
-# 5. ADMIN REVIEW SECTION: Recently Submitted Projects
+# 5. ADMIN REVIEW: Recently Submitted Projects
 st.divider()
 st.header("⏳ Recently Submitted Projects")
 
-# Logic to remove items from session state if they now exist in the CSV (by Project ID)
+# Auto-cleanup: remove from list if ID is now in the official CSV
 official_ids = set(df_raw['Project ID'].astype(str).unique())
 st.session_state.submitted_projects = [p for p in st.session_state.submitted_projects if str(p['id']) not in official_ids]
 
@@ -120,57 +119,57 @@ else:
     for p in st.session_state.submitted_projects:
         with st.expander(f"Review: {p['name']} (ID: {p['id']})"):
             st.write(f"**Description:** {p['desc']}")
-            st.write(f"**Link:** {p['link']} | **Cert Date:** {p['date']}")
-            st.write(f"**Categories Assigned:** {', '.join(p['cats'])}")
-            st.caption("Once this Project ID is added to the CSV, this entry will disappear.")
+            st.write(f"**Link:** {p['link']} | **Date:** {p['date']}")
+            st.write(f"**Categories:** {', '.join(p['cats'])}")
+            st.caption("Add this ID to projects.csv to remove this entry.")
 
-# 6. SUBMISSION BOX with Dependent Dropdowns
+# 6. SUBMISSION FORM
 st.divider()
 st.header("📩 Submit a 'Good Project'")
 with st.expander("Open Submission Form"):
-    st.subheader("1. Category Selection (Add as many as apply)")
-    
-    # Dependent Dropdown Logic for Submission
-    sub_col1, sub_col2, sub_col3 = st.columns(3)
-    with sub_col1:
-        s_l1 = st.selectbox("Category (L1)", sorted(df_raw['Level1'].dropna().unique()), key="sub_l1")
-    with sub_col2:
-        s_l2 = st.selectbox("Sub-Category (L2)", sorted(df_raw[df_raw['Level1'] == s_l1]['Level2'].dropna().unique()), key="sub_l2")
-    with sub_col3:
-        s_l3_opts = sorted(pd.unique(df_raw[df_raw['Level2'] == s_l2][['Level3-1','Level3-2','Level3-3','Level3-4']].values.ravel('K')))
-        s_l3 = st.multiselect("Specific Focus (L3)", [x for x in s_l3_opts if pd.notna(x)], key="sub_l3")
+    st.subheader("1. Build Categories")
+    c_a, c_b, c_c = st.columns(3)
+    with c_a: 
+        s1 = st.selectbox("Category (L1)", sorted(df_raw['Level1'].dropna().unique()), key="sub_l1")
+    with c_b: 
+        s2 = sorted(df_raw[df_raw['Level1'] == s1]['Level2'].dropna().unique())
+        s2_sel = st.selectbox("Sub-Category (L2)", s2, key="sub_l2")
+    with c_c:
+        s3_opts = sorted(pd.unique(df_raw[df_raw['Level2'] == s2_sel][['Level3-1','Level3-2','Level3-3','Level3-4']].values.ravel('K')))
+        s3_sel = st.multiselect("Focus (L3)", [x for x in s3_opts if pd.notna(x)], key="sub_l3")
 
     if st.button("➕ Complete Selection"):
-        cat_string = f"{s_l1} > {s_l2}" + (f" ({', '.join(s_l3)})" if s_l3 else "")
-        if cat_string not in st.session_state.current_submission_cats:
-            st.session_state.current_submission_cats.append(cat_string)
-            st.toast(f"Added: {cat_string}")
+        cat_str = f"{s1} > {s2_sel}" + (f" ({', '.join(s3_sel)})" if s3_sel else "")
+        if cat_str not in st.session_state.temp_cats:
+            st.session_state.temp_cats.append(cat_str)
+            st.toast("Category Added")
 
-    if st.session_state.current_submission_cats:
-        st.write("**Selected Categories:**")
-        for c in st.session_state.current_submission_cats:
-            st.markdown(f"- {c}")
-        if st.button("🗑️ Clear Selected Categories"):
-            st.session_state.current_submission_cats = []
+    if st.session_state.temp_cats:
+        st.write("**Current Selections:**")
+        for item in st.session_state.temp_cats:
+            st.write(f"- {item}")
+        if st.button("🗑️ Reset Categories"):
+            st.session_state.temp_cats = []
             st.rerun()
 
     st.markdown("---")
     st.subheader("2. Project Details")
-    with st.form("project_submission_form", clear_on_submit=True):
-        f_name = st.text_input("Project Name*")
-        f_id = st.text_input("Project ID*")
-        f_desc = st.text_area("Project Description")
-        f_link = st.text_input("ZAP Link")
-        f_date = st.date_input("Certification Date", date.today())
+    with st.form("final_submission", clear_on_submit=True):
+        p_name = st.text_input("Project Name*")
+        p_id = st.text_input("Project ID*")
+        p_desc = st.text_area("Description")
+        p_link = st.text_input("ZAP Link")
+        p_date = st.date_input("Cert Date", date.today())
         
         if st.form_submit_button("Submit Project"):
-            if f_name and f_id:
-                new_project = {
-                    "name": f_name,
-                    "id": f_id,
-                    "desc": f_desc,
-                    "link": f_link,
-                    "date": str(f_date),
-                    "cats": st.session_state.current_submission_cats.copy()
-                }
-                st.session_state.submitted_projects.
+            if p_name and p_id:
+                st.session_state.submitted_projects.append({
+                    "name": p_name, "id": p_id, "desc": p_desc,
+                    "link": p_link, "date": str(p_date),
+                    "cats": st.session_state.temp_cats.copy()
+                })
+                st.session_state.temp_cats = []
+                st.success("Project submitted!")
+                st.rerun()
+            else:
+                st.error("Name and ID are required.")
