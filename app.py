@@ -23,17 +23,25 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 3. Data Loading Function
+# 3. Updated Data Loading Function with Encoding Fix
 @st.cache_data
 def load_data():
+    file_path = 'projects.csv'
     try:
-        # Assumes your file is named 'projects.csv' in the same folder
-        df = pd.read_csv('projects.csv')
-        # Clean column names and handle specific Pilot Version formatting
+        # Try reading with standard UTF-8 first
+        try:
+            df = pd.read_csv(file_path, encoding='utf-8')
+        except UnicodeDecodeError:
+            # If that fails, try Windows-1252 (standard for Excel CSVs)
+            df = pd.read_csv(file_path, encoding='cp1252')
+        
+        # Clean column names (stripping extra spaces)
         df.columns = [c.strip() for c in df.columns]
-        # Filter out header rows from the template if they exist
+        
+        # Filter out empty rows or the 'instructional' header from the template
         df = df[df['Project'].notna()]
         df = df[~df['Project'].str.contains("Insert your project name", na=False)]
+        
         return df
     except Exception as e:
         st.error(f"Error loading CSV: {e}")
