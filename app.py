@@ -11,14 +11,12 @@ st.set_page_config(
 
 # --- PASSWORD PROTECTION ---
 def check_password():
-    """Returns True if the user had the correct password."""
     if "password_correct" not in st.session_state:
         st.session_state.password_correct = False
 
     if st.session_state.password_correct:
         return True
 
-    # Show login screen
     st.title("🔒 TRD Project Library Access")
     placeholder = st.empty()
     
@@ -30,11 +28,10 @@ def check_password():
         if submit_password:
             if password == "1234567890":
                 st.session_state.password_correct = True
-                placeholder.empty() # Clear the login form
+                placeholder.empty()
                 st.rerun()
             else:
                 st.error("😕 Incorrect password. Please try again.")
-    
     return False
 
 # 2. Data Loading Function
@@ -56,17 +53,12 @@ def load_data():
 
 # --- RUN AUTHENTICATION ---
 if check_password():
-    # Only if password is correct, run the rest of the app logic
     
-    # --- SESSION STATE INITIALIZATION ---
-    if "reset_key" not in st.session_state:
-        st.session_state.reset_key = 0
-    if "search_active" not in st.session_state:
-        st.session_state.search_active = False
-    if "submitted_projects" not in st.session_state:
-        st.session_state.submitted_projects = []
-    if "temp_cats" not in st.session_state:
-        st.session_state.temp_cats = []
+    # SESSION STATE INITIALIZATION
+    if "reset_key" not in st.session_state: st.session_state.reset_key = 0
+    if "search_active" not in st.session_state: st.session_state.search_active = False
+    if "submitted_projects" not in st.session_state: st.session_state.submitted_projects = []
+    if "temp_cats" not in st.session_state: st.session_state.temp_cats = []
 
     df_raw = load_data()
 
@@ -92,6 +84,7 @@ if check_password():
                     c3 = st.sidebar.selectbox("3. Specific Focus (L3)", l3_opts, key=f"s3_{st.session_state.reset_key}")
                     if c3 != "All": final_l3 = [c3]
     else:
+        # Multi-Action Search
         all_l1 = sorted([str(x) for x in df_raw['Level1'].dropna().unique()])
         final_l1 = st.sidebar.multiselect("Categories (L1)", all_l1, key=f"m1_{st.session_state.reset_key}")
         all_l2 = sorted([str(x) for x in df_raw['Level2'].dropna().unique()])
@@ -109,17 +102,3 @@ if check_password():
 
     # 4. Main Gallery
     st.title("🏙️ TRD Digital Good Projects Library")
-    q_search = st.text_input("📝 Quick Search (Name or ID)", key=f"q_{st.session_state.reset_key}")
-
-    if st.session_state.search_active or q_search:
-        df = df_raw.copy()
-        if search_mode == "Single-Action Search":
-            if final_l1: df = df[df['Level1'].isin(final_l1)]
-            if final_l2: df = df[df['Level2'].isin(final_l2)]
-            if final_l3: df = df[df['Level3-1'].isin(final_l3) | df['Level3-2'].isin(final_l3)]
-        else:
-            if final_l1 or final_l2 or final_l3:
-                def check_match(g):
-                    p_l1, p_l2 = set(g['Level1'].dropna()), set(g['Level2'].dropna())
-                    p_l3 = {str(x) for x in g[['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']].values.flatten() if pd.notna(x)}
-                    return all(i in p_l1 for i in final_l1) and all(i in p_l2
