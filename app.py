@@ -28,8 +28,7 @@ def load_data():
 
 df_raw = load_data()
 
-# --- SESSION STATE INITIALIZATION ---
-# We use a 'reset_key' to force-clear all widgets at once
+# --- SESSION STATE FOR RESET ---
 if "reset_key" not in st.session_state:
     st.session_state.reset_key = 0
 if "search_active" not in st.session_state:
@@ -38,15 +37,11 @@ if "search_active" not in st.session_state:
 def trigger_reset():
     st.session_state.reset_key += 1
     st.session_state.search_active = False
-    # This effectively wipes the 'query_text' state as well
-    if "query_input" in st.session_state:
-        st.session_state.query_input = ""
 
 if not df_raw.empty:
     # 3. Sidebar - Filter Navigation
     st.sidebar.header("🔍 Project Search")
     
-    # We add the reset_key to the widget keys to force refresh on clear
     search_mode = st.sidebar.radio(
         "Search Mode",
         ["Single-Action Search", "Multi-Action Search"],
@@ -77,16 +72,15 @@ if not df_raw.empty:
                     if c3 != "All":
                         final_l3 = [c3]
     else:
-        # Multi-Action Search
+        # --- MULTI-ACTION SEARCH (Strict Matching) ---
         all_l1 = sorted([str(x) for x in df_raw['Level1'].dropna().unique()])
         final_l1 = st.sidebar.multiselect("Select Categories (Level 1)", all_l1, key=f"l1_m_{st.session_state.reset_key}")
         
-        l2_opts = sorted([str(x) for x in df_raw[df_raw['Level1'].isin(final_l1)]['Level2'].dropna().unique()]) if final_l1 else sorted([str(x) for x in df_raw['Level2'].dropna().unique()])
+        l2_opts = sorted([str(x) for x in df_raw['Level2'].dropna().unique()])
         final_l2 = st.sidebar.multiselect("Select Sub-Categories (Level 2)", l2_opts, key=f"l2_m_{st.session_state.reset_key}")
 
         l3_cols = ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
-        l3_subset = df_raw[df_raw['Level2'].isin(final_l2)] if final_l2 else df_raw
-        raw_l3 = l3_subset[l3_cols].values.ravel('K')
+        raw_l3 = df_raw[l3_cols].values.ravel('K')
         all_l3 = sorted([str(x) for x in pd.unique(raw_l3) if pd.notna(x)])
         final_l3 = st.sidebar.multiselect("Select Specific Focus (Level 3)", all_l3, key=f"l3_m_{st.session_state.reset_key}")
 
@@ -101,24 +95,39 @@ if not df_raw.empty:
 
     # 5. Main Content
     st.title("🏙️ TRD Digital Good Projects Library")
-    
-    # Text input with a dynamic key ensures it clears on reset
-    q_search = st.text_input(
-        "📝 Quick Search (Name or ID)", 
-        key=f"query_input_{st.session_state.reset_key}"
-    )
+    q_search = st.text_input("📝 Quick Search (Name or ID)", key=f"query_input_{st.session_state.reset_key}")
 
-    # 6. Search Execution
+    # 6. Strict Filtering Logic
     if st.session_state.search_active or q_search:
         df = df_raw.copy()
 
-        if final_l1:
-            df = df[df['Level1'].isin(final_l1)]
-        if final_l2:
-            df = df[df['Level2'].isin(final_l2)]
-        if final_l3:
-            df = df[df['Level3-1'].isin(final_l3) | df['Level3-2'].isin(final_l3) | df['Level3-3'].isin(final_l3) | df['Level3-4'].isin(final_l3)]
+        # If Single-Action, we use standard filtering
+        if search_mode == "Single-Action Search":
+            if final_l1: df = df[df['Level1'].isin(final_l1)]
+            if final_l2: df = df[df['Level2'].isin(final_l2)]
+            if final_l3:
+                df = df[df['Level3-1'].isin(final_l3) | df['Level3-2'].isin(final_l3) | df['Level3-3'].isin(final_l3) | df['Level3-4'].isin(final_l3)]
         
+        # If Multi-Action, we use EXACT set matching
+        else:
+            if final_l1 or final_l2 or final_l3:
+                # Create a set of user selections
+                user_selection_set = set(final_l1 + final_l2 + final_l3)
+                
+                def is_exact_match(row):
+                    # Gather all categories assigned to this specific project row
+                    project_categories = [
+                        row['Level1'], row['Level2'], 
+                        row['Level3-1'], row['Level3-2'], 
+                        row['Level3-3'], row['Level3-4']
+                    ]
+                    # Clean the list of NaNs and convert to string set
+                    project_set = set([str(x) for x in project_categories if pd.notna(x)])
+                    # Return True ONLY if the project set is exactly the same as user selection
+                    return project_set == user_selection_set
+
+                df = df[df.apply(is_exact_match, axis=1)]
+
         if q_search:
             df = df[df['Project'].str.contains(q_search, case=False, na=False) | 
                     df['Project ID'].astype(str).str.contains(q_search, case=False, na=False)]
@@ -134,18 +143,19 @@ if not df_raw.empty:
                         st.markdown(f"### {row['Project']}")
                         st.caption(f"ID: {row['Project ID']} | {row['Cert Year']}")
                         st.markdown(f"**{row['Level1']}** > *{row['Level2']}*")
-                        l3_tags = [row[c] for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'] if pd.notna(row[c])]
-                        if l3_tags:
-                            st.caption(f"Focus: {', '.join([str(t) for t in l3_tags])}")
-                        st.write(f"{str(row['Project Desc.'])[:140]}...")
                         
+                        l3_vals = [row[c] for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'] if pd.notna(row[c])]
+                        if l3_vals:
+                            st.caption(f"Focus: {', '.join([str(t) for t in l3_vals])}")
+                        
+                        st.write(f"{str(row['Project Desc.'])[:140]}...")
                         url = row['Approval Pack/NOC']
                         if pd.isna(url) or not str(url).startswith("http"):
                             st.button("No Link", disabled=True, key=f"btn_{idx}_{st.session_state.reset_key}")
                         else:
                             st.link_button("View on ZAP", url, use_container_width=True)
         else:
-            st.warning("No projects match your selection.")
+            st.warning("No projects match that exact combination of actions.")
     else:
         st.info("👈 Use the sidebar to set your filters and click **'Run Search'**.")
 
