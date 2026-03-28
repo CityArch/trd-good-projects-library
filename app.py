@@ -64,7 +64,9 @@ else:
     final_l1 = st.sidebar.multiselect("Categories (L1)", all_l1, key=f"m1_{st.session_state.reset_key}")
     all_l2 = sorted([str(x) for x in df_raw['Level2'].dropna().unique()])
     final_l2 = st.sidebar.multiselect("Sub-Categories (L2)", all_l2, key=f"m2_{st.session_state.reset_key}")
-    all_l3 = sorted([str(x) for x in pd.unique(df_raw[['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']].values.ravel('K')) if pd.notna(x)])
+    # Fix for Multi-Search L3
+    raw_l3_m = df_raw[['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']].values.ravel('K')
+    all_l3 = sorted([str(x) for x in pd.unique(raw_l3_m) if pd.notna(x)])
     final_l3 = st.sidebar.multiselect("Specific Waivers (L3)", all_l3, key=f"m3_{st.session_state.reset_key}")
 
 if st.sidebar.button("🚀 Run Search", use_container_width=True, type="primary"):
@@ -108,8 +110,6 @@ else:
 # 5. ADMIN REVIEW: Recently Submitted Projects
 st.divider()
 st.header("⏳ Recently Submitted Projects")
-
-# Auto-cleanup: remove from list if ID is now in the official CSV
 official_ids = set(df_raw['Project ID'].astype(str).unique())
 st.session_state.submitted_projects = [p for p in st.session_state.submitted_projects if str(p['id']) not in official_ids]
 
@@ -132,11 +132,13 @@ with st.expander("Open Submission Form"):
     with c_a: 
         s1 = st.selectbox("Category (L1)", sorted(df_raw['Level1'].dropna().unique()), key="sub_l1")
     with c_b: 
-        s2 = sorted(df_raw[df_raw['Level1'] == s1]['Level2'].dropna().unique())
-        s2_sel = st.selectbox("Sub-Category (L2)", s2, key="sub_l2")
+        s2_list = sorted(df_raw[df_raw['Level1'] == s1]['Level2'].dropna().unique())
+        s2_sel = st.selectbox("Sub-Category (L2)", s2_list, key="sub_l2")
     with c_c:
-        s3_opts = sorted(pd.unique(df_raw[df_raw['Level2'] == s2_sel][['Level3-1','Level3-2','Level3-3','Level3-4']].values.ravel('K')))
-        s3_sel = st.multiselect("Focus (L3)", [x for x in s3_opts if pd.notna(x)], key="sub_l3")
+        # --- FIX APPLIED HERE: Clean NaNs and convert to string before sorting ---
+        raw_l3_sub = df_raw[df_raw['Level2'] == s2_sel][['Level3-1','Level3-2','Level3-3','Level3-4']].values.ravel('K')
+        s3_opts = sorted([str(x) for x in pd.unique(raw_l3_sub) if pd.notna(x)])
+        s3_sel = st.multiselect("Focus (L3)", s3_opts, key="sub_l3")
 
     if st.button("➕ Complete Selection"):
         cat_str = f"{s1} > {s2_sel}" + (f" ({', '.join(s3_sel)})" if s3_sel else "")
