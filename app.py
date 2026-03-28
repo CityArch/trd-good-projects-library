@@ -28,9 +28,11 @@ def load_data():
 
 df_raw = load_data()
 
-# Initialize search trigger in session state if not present
+# Initialize session state variables for search and text input
 if "search_active" not in st.session_state:
     st.session_state.search_active = False
+if "query_text" not in st.session_state:
+    st.session_state.query_text = ""
 
 if not df_raw.empty:
     # 3. Sidebar - Filter Navigation
@@ -85,14 +87,23 @@ if not df_raw.empty:
     
     if st.sidebar.button("🧹 Clear for a new search", use_container_width=True):
         st.session_state.search_active = False
+        st.session_state.query_text = ""  # Clear the saved search bar text
         st.rerun()
 
     # 5. Main Content
     st.title("🏙️ TRD Digital Good Projects Library")
-    q_search = st.text_input("📝 Quick Search (Name or ID)", "")
+    
+    # Text input linked to session state so it can be cleared programmatically
+    q_search = st.text_input(
+        "📝 Quick Search (Name or ID)", 
+        value=st.session_state.query_text, 
+        key="query_input"
+    )
+    # Update state whenever user types
+    st.session_state.query_text = q_search
 
     # 6. Search Execution
-    if st.session_state.search_active or q_search:
+    if st.session_state.search_active or st.session_state.query_text:
         df = df_raw.copy()
 
         if final_l1:
@@ -102,8 +113,9 @@ if not df_raw.empty:
         if final_l3:
             df = df[df['Level3-1'].isin(final_l3) | df['Level3-2'].isin(final_l3) | df['Level3-3'].isin(final_l3) | df['Level3-4'].isin(final_l3)]
         
-        if q_search:
-            df = df[df['Project'].str.contains(q_search, case=False, na=False) | df['Project ID'].astype(str).str.contains(q_search, case=False, na=False)]
+        if st.session_state.query_text:
+            df = df[df['Project'].str.contains(st.session_state.query_text, case=False, na=False) | 
+                    df['Project ID'].astype(str).str.contains(st.session_state.query_text, case=False, na=False)]
 
         st.subheader(f"Found {len(df)} Projects")
         st.divider()
