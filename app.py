@@ -105,7 +105,6 @@ if check_password():
     if st.session_state.search_active or q_search:
         df = df_raw.copy()
         if search_mode == "Single-Action Search":
-            # UPDATE: Cascading filter that works at any level selected
             if final_l1:
                 df = df[df['Level1'].isin(final_l1)]
             if final_l2:
@@ -168,5 +167,46 @@ if check_password():
             s2_opts = sorted(df_raw[df_raw['Level1'] == s1]['Level2'].dropna().unique())
             s2_sel = st.selectbox("Sub-Category (L2)", s2_opts, key="sub_l2")
         with cc:
+            # FIXED: Closed all parentheses correctly here
             raw_l3_sub = df_raw[df_raw['Level2'] == s2_sel][['Level3-1','Level3-2','Level3-3','Level3-4']].values.ravel('K')
-            s3_opts = sorted([str(x) for x in pd.unique(raw_l3_sub
+            s3_opts = sorted([str(x) for x in pd.unique(raw_l3_sub) if pd.notna(x)])
+            s3_sel = st.multiselect("Focus (L3)", s3_opts, key="sub_l3")
+
+        if st.button("➕ Complete Selection"):
+            cat_str = f"{s1} > {s2_sel}" + (f" ({', '.join(s3_sel)})" if s3_sel else "")
+            if cat_str not in st.session_state.temp_cats:
+                st.session_state.temp_cats.append(cat_str)
+                st.toast("Category Added")
+
+        if st.session_state.temp_cats:
+            st.write("**Current Selections:**")
+            for item in st.session_state.temp_cats: st.write(f"- {item}")
+            if st.button("🗑️ Reset Categories"):
+                st.session_state.temp_cats = []
+                st.rerun()
+
+        st.markdown("---")
+        st.subheader("2. Project Details")
+        with st.form("final_sub", clear_on_submit=True):
+            pname = st.text_input("Project Name*")
+            pid = st.text_input("Project ID*")
+            pdesc = st.text_area("Description")
+            plink = st.text_input("ZAP Link")
+            pdate = st.date_input("Cert Date", date.today())
+            if st.form_submit_button("Submit Project"):
+                if pname and pid:
+                    st.session_state.submitted_projects.append({
+                        "name": pname, "id": pid, "desc": pdesc,
+                        "link": plink, "date": str(pdate),
+                        "cats": st.session_state.temp_cats.copy()
+                    })
+                    st.session_state.temp_cats = []
+                    st.success("Project submitted!")
+                    st.rerun()
+                else: st.error("Name and ID are required.")
+    
+    st.divider()
+    st.caption("🔒 **Data Privacy:** Professional pilot tool. Restricted access.")
+
+else:
+    st.stop()
