@@ -8,7 +8,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. Data Loading Function (with encoding fallback for Excel CSVs)
+# 2. Data Loading Function
 @st.cache_data
 def load_data():
     file_path = 'projects.csv'
@@ -20,7 +20,6 @@ def load_data():
         
         df.columns = [c.strip() for c in df.columns]
         df = df[df['Project'].notna()]
-        # Remove template rows
         df = df[~df['Project'].str.contains("Insert your project name", na=False)]
         return df
     except Exception as e:
@@ -30,76 +29,100 @@ def load_data():
 df_raw = load_data()
 
 if not df_raw.empty:
-    # 3. Sidebar - Multi-Action Search Interface
-    st.sidebar.header("🔍 Multi-Action Search")
+    # 3. Sidebar - Search Interface
+    st.sidebar.header("🔍 Project Directory")
     
-    # --- LEVEL 1 SELECTION ---
-    all_l1 = sorted([str(x) for x in df_raw['Level1'].dropna().unique()])
-    selected_l1 = st.sidebar.multiselect("Select Categories (Level 1)", all_l1)
+    # Selection Mode
+    search_mode = st.sidebar.radio(
+        "Select Search Method",
+        ["Single-Action Search", "Multi-Action Search"],
+        index=0,
+        help="Single-Action drills down one path; Multi-Action allows multiple category tags."
+    )
 
-    # --- LEVEL 2 SELECTION (Cascading) ---
-    if selected_l1:
-        l2_options = sorted([str(x) for x in df_raw[df_raw['Level1'].isin(selected_l1)]['Level2'].dropna().unique()])
+    # Initialize variables for filtering
+    sel_l1, sel_l2, sel_l3 = [], [], []
+
+    if search_mode == "Single-Action Search":
+        st.sidebar.markdown("---")
+        # Step 1: Level 1
+        l1_opts = ["All"] + sorted([str(x) for x in df_raw['Level1'].dropna().unique()])
+        choice_l1 = st.sidebar.selectbox("1. Select Category (Level 1)", l1_opts)
+        
+        if choice_l1 != "All":
+            sel_l1 = [choice_l1]
+            # Step 2: Level 2
+            l2_opts = ["All"] + sorted([str(x) for x in df_raw[df_raw['Level1'] == choice_l1]['Level2'].dropna().unique()])
+            choice_l2 = st.sidebar.selectbox("2. Select Sub-Category (Level 2)", l2_opts)
+            
+            if choice_l2 != "All":
+                sel_l2 = [choice_l2]
+                # Step 3: Level 3
+                l3_cols = ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
+                l3_subset = df_raw[df_raw['Level2'] == choice_l2]
+                raw_l3 = l3_subset[l3_cols].values.ravel('K')
+                l3_opts = ["All"] + sorted([str(x) for x in pd.unique(raw_l3) if pd.notna(x)])
+                
+                if len(l3_opts) > 1: # Only show if there are Level 3 options
+                    choice_l3 = st.sidebar.selectbox("3. Select Specific Focus (Level 3)", l3_opts)
+                    if choice_l3 != "All":
+                        sel_l3 = [choice_l3]
+
     else:
-        l2_options = sorted([str(x) for x in df_raw['Level2'].dropna().unique()])
-    
-    selected_l2 = st.sidebar.multiselect("Select Sub-Categories (Level 2)", l2_options)
+        # Multi-Action Search
+        all_l1 = sorted([str(x) for x in df_raw['Level1'].dropna().unique()])
+        sel_l1 = st.sidebar.multiselect("Select Categories (Level 1)", all_l1)
 
-    # --- LEVEL 3 SELECTION (Cascading) ---
-    l3_cols = ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
-    
-    if selected_l2:
-        l3_subset = df_raw[df_raw['Level2'].isin(selected_l2)]
-    elif selected_l1:
-        l3_subset = df_raw[df_raw['Level1'].isin(selected_l1)]
-    else:
-        l3_subset = df_raw
+        if sel_l1:
+            l2_opts = sorted([str(x) for x in df_raw[df_raw['Level1'].isin(sel_l1)]['Level2'].dropna().unique()])
+        else:
+            l2_opts = sorted([str(x) for x in df_raw['Level2'].dropna().unique()])
+        sel_l2 = st.sidebar.multiselect("Select Sub-Categories (Level 2)", l2_options)
 
-    # FIX: Flatten values, remove NaNs, convert to string, then sort
-    raw_l3_values = l3_subset[l3_cols].values.ravel('K')
-    all_l3 = sorted([str(x) for x in pd.unique(raw_l3_values) if pd.notna(x)])
-    
-    selected_l3 = st.sidebar.multiselect("Select Specific Focus (Level 3)", all_l3)
+        l3_cols = ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
+        if sel_l2:
+            l3_subset = df_raw[df_raw['Level2'].isin(sel_l2)]
+        else:
+            l3_subset = df_raw
+        
+        raw_l3 = l3_subset[l3_cols].values.ravel('K')
+        all_l3 = sorted([str(x) for x in pd.unique(raw_l3) if pd.notna(x)])
+        sel_l3 = st.sidebar.multiselect("Select Specific Focus (Level 3)", all_l3)
 
-    # --- SEARCH BUTTON ---
-    # This button triggers the filtering process
-    search_triggered = st.sidebar.button("🚀 Run Search", use_container_width=True)
+    # 4. Global Run Search Button
+    st.sidebar.markdown("---")
+    run_search = st.sidebar.button("🚀 Run Search", use_container_width=True, type="primary")
 
-    # 4. Main UI Content
+    # 5. Main Content Area
     st.title("🏙️ TRD Digital Good Projects Library")
     
-    # Text Search (Always available)
-    search_query = st.text_input("📝 Quick Search by Project Name or ID", "")
+    # Quick Text Search (Always live)
+    quick_search = st.text_input("📝 Search by Project Name or ID...", "")
 
-    # 5. Logic: Filtering Data
-    # Only run the heavy filter if the button is pressed or text is typed
-    if search_triggered or search_query:
+    # 6. Filtering Logic
+    if run_search or quick_search:
         df = df_raw.copy()
 
-        # Filtering exactly by the selected categories
-        if selected_l1:
-            df = df[df['Level1'].isin(selected_l1)]
+        if sel_l1:
+            df = df[df['Level1'].isin(sel_l1)]
+        if sel_l2:
+            df = df[df['Level2'].isin(sel_l2)]
+        if sel_l3:
+            df = df[
+                df['Level3-1'].isin(sel_l3) | 
+                df['Level3-2'].isin(sel_l3) | 
+                df['Level3-3'].isin(sel_l3) | 
+                df['Level3-4'].isin(sel_l3)
+            ]
         
-        if selected_l2:
-            df = df[df['Level2'].isin(selected_l2)]
-            
-        if selected_l3:
-            # Check if ANY of the Level 3 columns match the user's selections
+        if quick_search:
             df = df[
-                df['Level3-1'].isin(selected_l3) | 
-                df['Level3-2'].isin(selected_l3) | 
-                df['Level3-3'].isin(selected_l3) | 
-                df['Level3-4'].isin(selected_l3)
+                df['Project'].str.contains(quick_search, case=False, na=False) | 
+                df['Project ID'].astype(str).str.contains(quick_search, case=False, na=False)
             ]
 
-        if search_query:
-            df = df[
-                df['Project'].str.contains(search_query, case=False, na=False) | 
-                df['Project ID'].astype(str).str.contains(search_query, case=False, na=False)
-            ]
-
-        # 6. Display Gallery
-        st.write(f"Found **{len(df)}** projects matching your exact criteria.")
+        # 7. Display Results
+        st.subheader(f"Results: {len(df)} Projects Found")
         st.divider()
 
         if not df.empty:
@@ -111,10 +134,10 @@ if not df_raw.empty:
                         st.caption(f"ID: {row['Project ID']} | {row['Cert Year']}")
                         st.markdown(f"**{row['Level1']}** > *{row['Level2']}*")
                         
-                        # Display tags from Level 3
-                        l3_tags = [row[c] for c in l3_cols if pd.notna(row[c])]
-                        if l3_tags:
-                            st.caption(f"Waivers: {', '.join([str(t) for t in l3_tags])}")
+                        # Waiver Tags
+                        tags = [row[c] for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'] if pd.notna(row[c])]
+                        if tags:
+                            st.caption(f"Details: {', '.join([str(t) for t in tags])}")
 
                         desc = str(row['Project Desc.'])
                         st.write(f"{desc[:140]}..." if len(desc) > 140 else desc)
@@ -125,36 +148,35 @@ if not df_raw.empty:
                         else:
                             st.link_button("View on ZAP", url, use_container_width=True)
         else:
-            st.warning("No projects match that combination. Try broadening your selection.")
+            st.warning("No projects match your specific selection. Please try a different category.")
     else:
-        # Initial Welcome Screen
-        st.info("👈 Set your filters in the sidebar and hit **'Run Search'** to explore the Good Projects library.")
+        # Default Welcome Screen
+        st.info("👈 Use the filters in the sidebar and click **'Run Search'** to start exploring the directory.")
         st.markdown("""
-        ### How it works:
-        1. **Select Level 1 Categories** (e.g., Bulk Waivers).
-        2. **Refine by Level 2 Sub-categories** (e.g., Height & Setbacks).
-        3. **Drill down to Level 3 Focus** (e.g., Sky Exposure Plane).
-        4. Click the **Search Button** to see only the projects that fit those categories.
+        ### Pilot Directory Features:
+        * **Single-Action:** Drill down logically from broad categories to specific waivers.
+        * **Multi-Action:** Select multiple tags to compare projects across different zoning types.
+        * **Direct Links:** Access NYC Planning (ZAP) documentation directly from each card.
         """)
 
-    # 7. Privacy & Feedback
+    # 8. Footer & Privacy
     st.divider()
-    # Acknowledging your preference for transparency and trust:
-    st.caption("🔒 **Data Privacy Commitment:** This application is a local tool. We value your trust; your data is never sold or tracked.")
+    st.caption("🔒 **Data Privacy Commitment:** As discussed, we value the trust of our users. This application does not track individual searches or sell data.")
     
-    with st.expander("📩 Submit a Project for the Library"):
-        with st.form("contribution", clear_on_submit=True):
+    with st.expander("📩 Submit a 'Good Project' for Review"):
+        with st.form("sub_form", clear_on_submit=True):
             f1, f2 = st.columns(2)
             with f1:
-                name = st.text_input("Project Name*")
-                link = st.text_input("ZAP Link")
+                p_name = st.text_input("Project Name*")
+                z_link = st.text_input("ZAP Link")
             with f2:
-                org = st.text_input("Your Organization")
-                cat = st.selectbox("Category", all_l1 if all_l1 else ["General"])
+                org = st.text_input("Organization")
+                p_cat = st.selectbox("Category", sorted([str(x) for x in df_raw['Level1'].dropna().unique()]))
             
-            why = st.text_area("Why is this a 'Good Project'?")
-            if st.form_submit_button("Submit Suggestion") and name:
-                st.success("Thank you! Suggestion recorded for the pilot review.")
+            logic = st.text_area("Why is this a 'Good Project'?")
+            if st.form_submit_button("Submit"):
+                if p_name:
+                    st.success("Thank you! Your contribution has been submitted for the pilot database.")
 
 else:
-    st.error("Wait! The 'projects.csv' file was not found or has column errors.")
+    st.error("Critical Error: 'projects.csv' not found. Please upload your database to the root folder.")
