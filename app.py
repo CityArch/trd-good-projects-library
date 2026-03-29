@@ -5,11 +5,7 @@ import base64
 import os
 
 # 1. Page Configuration
-st.set_page_config(
-    page_title="TRD Digital Good Projects Library",
-    page_icon="🏙️",
-    layout="wide"
-)
+st.set_page_config(page_title="TRD Digital Good Projects Library", page_icon="🏙️", layout="wide")
 
 # --- HELPER: IMAGE TO BASE64 ---
 def get_base64_image(image_path):
@@ -40,49 +36,33 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-# --- COLOR MAPPING ---
 def get_l1_color(l1_name):
-    mapping = {
-        "Bulk_Waivers": "#38BDF8", "Use_Waivers": "#4ADE80",
-        "Parking_Waivers": "#FB923C", "Housing_Actions": "#F87171", "Open_Space": "#FACC15"
-    }
+    mapping = {"Bulk_Waivers": "#38BDF8", "Use_Waivers": "#4ADE80", "Parking_Waivers": "#FB923C", "Housing_Actions": "#F87171", "Open_Space": "#FACC15"}
     return mapping.get(l1_name, "#94A3B8")
 
-# --- PASSWORD PROTECTION ---
 def check_password():
-    if "password_correct" not in st.session_state:
-        st.session_state.password_correct = False
-    if st.session_state.password_correct:
-        return True
-    st.markdown("<div class='hero-section'><h1>🔒 TRD Project Library</h1><p>RESTRICTED ACCESS TERMINAL</p></div>", unsafe_allow_html=True)
-    with st.form("login_form"):
-        password = st.text_input("Access Token", type="password")
-        if st.form_submit_button("UNLOCK DASHBOARD"):
-            if password == "1234567890":
+    if "password_correct" not in st.session_state: st.session_state.password_correct = False
+    if st.session_state.password_correct: return True
+    st.markdown("<div class='hero-section'><h1>🔒 TRD Project Library</h1></div>", unsafe_allow_html=True)
+    with st.form("login"):
+        pw = st.text_input("Access Token", type="password")
+        if st.form_submit_button("UNLOCK"):
+            if pw == "1234567890":
                 st.session_state.password_correct = True
                 st.rerun()
-            else:
-                st.error("Invalid credentials.")
+            else: st.error("Invalid credentials.")
     return False
 
-# 2. Data Loading with Header Cleaning
 @st.cache_data
 def load_data():
     file_path = 'projects.csv'
-    if not os.path.exists(file_path):
-        return pd.DataFrame()
+    if not os.path.exists(file_path): return pd.DataFrame()
     try:
-        try:
-            df = pd.read_csv(file_path, encoding='utf-8-sig')
-        except:
-            df = pd.read_csv(file_path, encoding='cp1252')
+        df = pd.read_csv(file_path, encoding='utf-8-sig')
         df.columns = [str(c).strip().replace('ï»¿', '') for c in df.columns]
         return df[df['Project'].notna()]
-    except Exception as e:
-        st.error(f"Load Error: {e}")
-        return pd.DataFrame()
+    except: return pd.DataFrame()
 
-# --- MAIN APP ---
 if check_password():
     if "reset_key" not in st.session_state: st.session_state.reset_key = 0
     if "search_clicked" not in st.session_state: st.session_state.search_clicked = False
@@ -95,7 +75,7 @@ if check_password():
     search_mode = st.sidebar.radio("MODE", ["Single-Action Search", "Multi-Action Search"], key=f"m_mode_{st.session_state.reset_key}")
 
     final_l1, final_l2, final_l3 = [], [], []
-    sub_logic = None
+    specification = None
 
     if search_mode == "Single-Action Search":
         l1_opts = ["All"] + sorted([str(x) for x in df_raw['Level1'].dropna().unique()])
@@ -113,16 +93,11 @@ if check_password():
                     c3 = st.sidebar.selectbox("L3", l3_opts, key=f"s3_{st.session_state.reset_key}")
                     if c3 != "All": final_l3 = [c3]
     else:
-        # Renamed Logic Depth to Specification
-        sub_logic = st.sidebar.selectbox("SPECIFICATION", ["Select Specification...", "L2 + L3", "Only L3", "Only L2"], key=f"sub_log_{st.session_state.reset_key}")
-        
+        specification = st.sidebar.selectbox("SPECIFICATION", ["Select Specification...", "L2 + L3", "Only L3", "Only L2"], key=f"spec_{st.session_state.reset_key}")
         all_l1 = sorted([str(x) for x in df_raw['Level1'].dropna().unique()])
         final_l1 = st.sidebar.multiselect("L1", all_l1, key=f"m1_{st.session_state.reset_key}")
-        
         all_l2 = sorted([str(x) for x in df_raw['Level2'].dropna().unique()])
         final_l2 = st.sidebar.multiselect("L2", all_l2, key=f"m2_{st.session_state.reset_key}")
-        
-        # Fixed L3 visibility in Multi-Action mode
         l3_cols_m = ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
         raw_l3_m = df_raw[l3_cols_m].values.ravel('K')
         all_l3 = sorted([str(x) for x in pd.unique(raw_l3_m) if pd.notna(x)])
@@ -130,7 +105,7 @@ if check_password():
 
     st.sidebar.markdown("---")
     if st.sidebar.button("🚀 EXECUTE SEARCH", use_container_width=True, type="primary"):
-        if search_mode == "Multi-Action Search" and sub_logic == "Select Specification...":
+        if search_mode == "Multi-Action Search" and specification == "Select Specification...":
             st.sidebar.error("Please select a Specification depth.")
         else:
             st.session_state.search_clicked = True
@@ -153,33 +128,32 @@ if check_password():
                 df = df[df['Level3-1'].isin(final_l3) | df['Level3-2'].isin(final_l3) | 
                         df['Level3-3'].isin(final_l3) | df['Level3-4'].isin(final_l3)]
         else:
-            # RELATIONAL "AND" HIERARCHY LOGIC
-            search_items = set(final_l1) | set(final_l2) | set(final_l3)
-            
-            def check_hierarchy_match(group):
-                project_pool = set()
-                l3_exists_in_project = False
+            # IMPROVED MULTI-ACTION "PATH" LOGIC
+            def check_domino_match(group):
+                p_l1 = set(group['Level1'].dropna())
+                p_l2 = set(group['Level2'].dropna())
+                p_l3 = set()
+                for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
+                    p_l3.update(group[c].dropna().astype(str).unique())
                 
-                for _, row in group.iterrows():
-                    has_l3 = any(pd.notna(row[c]) for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'])
-                    if has_l3: l3_exists_in_project = True
-                    
-                    project_pool.update([str(row['Level1']), str(row['Level2'])])
-                    for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
-                        if pd.notna(row[c]): project_pool.add(str(row[c]))
-
-                # Core AND logic: Project must contain EVERY selected filter item
-                if not search_items.issubset(project_pool): return False
+                # Must contain every item clicked in the sidebar
+                search_items = set(final_l1) | set(final_l2) | set(final_l3)
+                project_all_vals = p_l1 | p_l2 | p_l3
+                if not search_items.issubset(project_all_vals): return False
                 
-                # Filter by Specification Depth
-                if sub_logic == "Only L2":
-                    return not l3_exists_in_project
-                elif sub_logic == "Only L3":
-                    return l3_exists_in_project
-                return True 
+                # SPECIFICATION DEPTH LOGIC
+                # Does the project have any rows that end exactly at L2?
+                has_pure_l2 = any(pd.isna(row['Level3-1']) and pd.isna(row['Level3-2']) for _, row in group.iterrows())
+                # Does the project have any rows that contain L3?
+                has_any_l3 = len(p_l3) > 0
 
-            if search_items:
-                matching_ids = df_raw.groupby('Project ID').filter(check_hierarchy_match)['Project ID'].unique()
+                if specification == "Only L2": return has_pure_l2 and not has_any_l3
+                if specification == "Only L3": return has_any_l3
+                if specification == "L2 + L3": return has_pure_l2 and has_any_l3
+                return True
+
+            if final_l1 or final_l2 or final_l3:
+                matching_ids = df_raw.groupby('Project ID').filter(check_domino_match)['Project ID'].unique()
                 df = df_raw[df_raw['Project ID'].isin(matching_ids)]
 
         if q_search:
@@ -205,5 +179,4 @@ if check_password():
                             st.markdown(f"<p class='mono-text' style='color:{hex_color};'>• {chain}</p>", unsafe_allow_html=True)
                         zap = str(first_row['Approval Pack/NOC'])
                         if zap.startswith("http"): st.link_button("OPEN ZAP", zap, use_container_width=True)
-        else: st.warning("No records match your exact specification.")
-    else: st.info("SYSTEM ONLINE. SELECT SPECIFICATION AND FILTERS TO BEGIN.")
+        else: st.warning("No records found.")
