@@ -166,4 +166,84 @@ if check_password():
 
         if q_search:
             df = df[df['Project'].str.contains(q_search, case=False, na=False) | 
-                    df['Project ID'].astype(
+                    df['Project ID'].astype(str).str.contains(q_search, case=False, na=False)]
+
+        grouped = df.groupby('Project ID')
+        st.subheader(f"FOUND {len(grouped)} PROJECTS")
+        
+        if not df.empty:
+            grid = st.columns(3)
+            for idx, (proj_id, group) in enumerate(grouped):
+                first_row = group.iloc[0]
+                l1_val = str(first_row['Level1'])
+                hex_color = get_l1_color(l1_val)
+                with grid[idx % 3]:
+                    with st.container(border=True):
+                        st.markdown(f"<div style='height:4px; width:40px; background-color:{hex_color}; margin-bottom:10px;'></div>", unsafe_allow_html=True)
+                        st.markdown(f"### {first_row['Project']}")
+                        st.markdown(f"<p class='mono-text'>ID: {proj_id} // CERT: {first_row['Cert Year']}</p>", unsafe_allow_html=True)
+                        for _, row in group.iterrows():
+                            l1 = str(row['Level1']); l2 = str(row['Level2'])
+                            l3_v = [str(row[c]) for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'] if pd.notna(row[c])]
+                            chain = f"{l1} > {l2}" + (f" > {', '.join(l3_v)}" if l3_v else "")
+                            st.markdown(f"<p class='mono-text' style='color:{hex_color};'>• {chain}</p>", unsafe_allow_html=True)
+                        zap = str(first_row['Approval Pack/NOC'])
+                        if zap.startswith("http"): st.link_button("OPEN ZAP", zap, use_container_width=True)
+        else:
+            st.warning("No records match your query.")
+    else:
+        st.info("SYSTEM ONLINE. SELECT FILTERS TO BEGIN.")
+
+    # 5. Submission Terminal
+    st.divider()
+    st.header("📩 DATA CONTRIBUTION")
+    with st.expander("OPEN TERMINAL"):
+        st.subheader("1. Categorize Project")
+        ca, cb, cc = st.columns(3)
+        with ca: s1 = st.selectbox("L1", sorted(df_raw['Level1'].dropna().unique()), key="sl1")
+        with cb: 
+            s2_opts = sorted(df_raw[df_raw['Level1'] == s1]['Level2'].dropna().unique())
+            s2_sel = st.selectbox("L2", s2_opts, key="sl2")
+        with cc:
+            raw_l3_sub = df_raw[df_raw['Level2'] == s2_sel][['Level3-1','Level3-2','Level3-3','Level3-4']].values.ravel('K')
+            s3_list = sorted([str(x) for x in pd.unique(raw_l3_sub) if pd.notna(x)])
+            s3_sel = st.multiselect("L3", s3_list, key="sl3")
+
+        if st.button("➕ ADD CATEGORY"):
+            cat_label = f"{s1} > {s2_sel}" + (f" ({', '.join(s3_sel)})" if s3_sel else "")
+            if cat_label not in st.session_state.temp_cats:
+                st.session_state.temp_cats.append(cat_label)
+                st.toast("Category Added!")
+
+        if st.session_state.temp_cats:
+            st.write("**Selections:**")
+            for cat in st.session_state.temp_cats: st.write(f"- {cat}")
+            if st.button("🗑️ RESET CATEGORIES"):
+                st.session_state.temp_cats = []
+                st.rerun()
+
+        st.markdown("---")
+        st.subheader("2. Project Details")
+        with st.form("f_sub", clear_on_submit=True):
+            f_name = st.text_input("PROJECT NAME")
+            f_id = st.text_input("PROJECT ID")
+            f_desc = st.text_area("DESCRIPTION")
+            f_link = st.text_input("ZAP LINK")
+            f_date = st.date_input("CERT DATE", date.today())
+            if st.form_submit_button("SUBMIT"):
+                if f_name and f_id:
+                    st.session_state.submitted_projects.append({
+                        "name": f_name, "id": f_id, "desc": f_desc,
+                        "link": f_link, "date": str(f_date),
+                        "cats": st.session_state.temp_cats.copy()
+                    })
+                    st.session_state.temp_cats = []
+                    st.success("Packet queued.")
+                    st.rerun()
+                else: st.error("Incomplete.")
+
+    st.divider()
+    st.caption("🔒 DATA PRIVACY: Professional pilot tool. Restricted access.")
+
+else:
+    st.stop()
