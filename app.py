@@ -11,24 +11,22 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- HELPER: IMAGE TO BASE64 FOR CSS BACKGROUND ---
+# --- HELPER: IMAGE TO BASE64 ---
 def get_base64_image(image_path):
     if os.path.exists(image_path):
         with open(image_path, "rb") as img_file:
             return base64.b64encode(img_file.read()).decode()
-    return None
+    return ""
 
 img_base64 = get_base64_image("image.jpg")
 
-# --- TECH-SAVVY CSS INJECTION ---
+# --- TECH-SAVVY CSS ---
 st.markdown(f"""
     <style>
     .stApp {{
         background-color: #0F172A;
         color: #F8FAFC;
     }}
-    
-    /* Hero Banner with Zoning Map Background */
     .hero-section {{
         background-image: linear-gradient(rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.85)), url("data:image/jpg;base64,{img_base64}");
         background-size: cover;
@@ -39,31 +37,21 @@ st.markdown(f"""
         text-align: center;
         margin-bottom: 30px;
     }}
-
     section[data-testid="stSidebar"] {{
         background-color: #1E293B !important;
         border-right: 1px solid #334155;
     }}
-    
     .mono-text {{
         font-family: 'Roboto Mono', monospace;
         font-size: 0.85rem;
         color: #94A3B8;
     }}
-
     div[data-testid="stVerticalBlock"] > div[style*="border"] {{
         background: rgba(30, 41, 59, 0.7) !important;
         backdrop-filter: blur(10px);
         border: 1px solid #334155 !important;
         border-radius: 12px !important;
-        transition: all 0.3s ease;
     }}
-    
-    div[data-testid="stVerticalBlock"] > div[style*="border"]:hover {{
-        border-color: #38BDF8 !important;
-        box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
-    }}
-
     .stButton>button {{
         border-radius: 8px;
         text-transform: uppercase;
@@ -90,10 +78,8 @@ def check_password():
         st.session_state.password_correct = False
     if st.session_state.password_correct:
         return True
-    
     st.markdown("<div class='hero-section'><h1>🔒 TRD Project Library</h1><p>RESTRICTED ACCESS TERMINAL</p></div>", unsafe_allow_html=True)
-    placeholder = st.empty()
-    with placeholder.form("login_form"):
+    with st.form("login_form"):
         password = st.text_input("Access Token", type="password")
         if st.form_submit_button("UNLOCK DASHBOARD"):
             if password == "1234567890":
@@ -103,7 +89,7 @@ def check_password():
                 st.error("Invalid credentials.")
     return False
 
-# 2. Data Loading with Header Cleaning
+# 2. Data Loading
 @st.cache_data
 def load_data():
     file_path = 'projects.csv'
@@ -112,8 +98,6 @@ def load_data():
             df = pd.read_csv(file_path, encoding='utf-8-sig')
         except:
             df = pd.read_csv(file_path, encoding='cp1252')
-        
-        # CLEANING: Remove hidden spaces and Excel artifacts
         df.columns = [str(c).strip().replace('ï»¿', '') for c in df.columns]
         df = df[df['Project'].notna()]
         return df
@@ -121,7 +105,7 @@ def load_data():
         st.error(f"Load Error: {e}")
         return pd.DataFrame()
 
-# --- MAIN APP LOGIC ---
+# --- MAIN APP ---
 if check_password():
     if "reset_key" not in st.session_state: st.session_state.reset_key = 0
     if "search_active" not in st.session_state: st.session_state.search_active = False
@@ -130,17 +114,11 @@ if check_password():
 
     df_raw = load_data()
 
-    # Hero Banner
-    st.markdown("""
-        <div class='hero-section'>
-            <h1 style='margin:0; font-size: 3rem;'>🏙️ GOOD PROJECTS LIBRARY</h1>
-            <p style='color:#38BDF8; font-family:monospace;'>NYC ZONING ANALYTICS TERMINAL</p>
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown("<div class='hero-section'><h1>🏙️ GOOD PROJECTS LIBRARY</h1><p style='color:#38BDF8;'>NYC ZONING ANALYTICS TERMINAL</p></div>", unsafe_allow_html=True)
 
-    # 3. Sidebar - Advanced Filtering
+    # 3. Sidebar Filters
     st.sidebar.markdown("### 🛠️ SYSTEM FILTERS")
-    search_mode = st.sidebar.radio("MODE", ["Single-Action Search", "Multi-Action Search"], key=f"m_{st.session_state.reset_key}")
+    search_mode = st.sidebar.radio("MODE", ["Single-Action Search", "Multi-Action Search"], key=f"m_mode_{st.session_state.reset_key}")
 
     final_l1, final_l2, final_l3 = [], [], []
 
@@ -164,6 +142,49 @@ if check_password():
         final_l1 = st.sidebar.multiselect("L1 CATEGORIES", all_l1, key=f"m1_{st.session_state.reset_key}")
         all_l2 = sorted([str(x) for x in df_raw['Level2'].dropna().unique()])
         final_l2 = st.sidebar.multiselect("L2 SUB-CATEGORIES", all_l2, key=f"m2_{st.session_state.reset_key}")
-        raw_l3_m = df_raw[['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']].values.ravel('K')
+        l3_cols_m = ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
+        raw_l3_m = df_raw[l3_cols_m].values.ravel('K')
         all_l3 = sorted([str(x) for x in pd.unique(raw_l3_m) if pd.notna(x)])
-        final_l3 = st.sidebar.multiselect("L3 FOCUS AREAS", all_l3, key=f"m
+        final_l3 = st.sidebar.multiselect("L3 FOCUS AREAS", all_l3, key=f"m3_{st.session_state.reset_key}")
+
+    if st.sidebar.button("🚀 EXECUTE SEARCH", use_container_width=True, type="primary"):
+        st.session_state.search_active = True
+    if st.sidebar.button("🧹 RESET", use_container_width=True):
+        st.session_state.reset_key += 1
+        st.session_state.search_active = False
+        st.rerun()
+
+    # 4. Results
+    q_search = st.text_input("📝 KEYWORD SEARCH", placeholder="Search project name or ID...", key=f"q_search_{st.session_state.reset_key}")
+
+    if st.session_state.search_active or q_search:
+        df = df_raw.copy()
+        if search_mode == "Single-Action Search":
+            if final_l1: df = df[df['Level1'].isin(final_l1)]
+            if final_l2: df = df[df['Level2'].isin(final_l2)]
+            if final_l3:
+                df = df[df['Level3-1'].isin(final_l3) | df['Level3-2'].isin(final_l3) | 
+                        df['Level3-3'].isin(final_l3) | df['Level3-4'].isin(final_l3)]
+        else:
+            if final_l1 or final_l2 or final_l3:
+                def check_match(group):
+                    p_l1 = set(group['Level1'].dropna()); p_l2 = set(group['Level2'].dropna())
+                    p_l3 = {str(x) for x in group[['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']].values.flatten() if pd.notna(x)}
+                    return all(i in p_l1 for i in final_l1) and all(i in p_l2 for i in final_l2) and all(i in p_l3 for i in final_l3)
+                m_ids = df_raw.groupby('Project ID').filter(check_match)['Project ID'].unique()
+                df = df_raw[df_raw['Project ID'].isin(m_ids)]
+
+        if q_search:
+            df = df[df['Project'].str.contains(q_search, case=False, na=False) | 
+                    df['Project ID'].astype(str).str.contains(q_search, case=False, na=False)]
+
+        grouped = df.groupby('Project ID')
+        st.subheader(f"SYSTEM FOUND {len(grouped)} PROJECTS")
+        
+        if not df.empty:
+            grid = st.columns(3)
+            for idx, (proj_id, group) in enumerate(grouped):
+                first_row = group.iloc[0]
+                hex_color = get_l1_color(str(first_row['Level1']))
+                with grid[idx % 3]:
+                    with st.
