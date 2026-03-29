@@ -183,8 +183,3 @@ if check_password():
         
         if not df.empty:
             grid = st.columns(3)
-            for idx, (proj_id, group) in enumerate(grouped):
-                first_row = group.iloc[0]
-                hex_color = get_l1_color(str(first_row['Level1']))
-                with grid[idx % 3]:
-                    with st.
