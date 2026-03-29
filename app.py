@@ -58,7 +58,10 @@ def load_data():
     file_path = 'projects.csv'
     if not os.path.exists(file_path): return pd.DataFrame()
     try:
-        df = pd.read_csv(file_path, encoding='utf-8-sig')
+        try:
+            df = pd.read_csv(file_path, encoding='utf-8-sig')
+        except:
+            df = pd.read_csv(file_path, encoding='cp1252')
         df.columns = [str(c).strip().replace('ï»¿', '') for c in df.columns]
         return df[df['Project'].notna()]
     except: return pd.DataFrame()
@@ -128,32 +131,37 @@ if check_password():
                 df = df[df['Level3-1'].isin(final_l3) | df['Level3-2'].isin(final_l3) | 
                         df['Level3-3'].isin(final_l3) | df['Level3-4'].isin(final_l3)]
         else:
-            # IMPROVED MULTI-ACTION "PATH" LOGIC
-            def check_domino_match(group):
-                p_l1 = set(group['Level1'].dropna())
-                p_l2 = set(group['Level2'].dropna())
-                p_l3 = set()
-                for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
-                    p_l3.update(group[c].dropna().astype(str).unique())
+            # LEAF-NODE SPECIFICATION LOGIC
+            def check_leaf_node_match(group):
+                # 1. Map rows in this project to their highest depth
+                project_l2_only = set() # Items that exist as L2 and have NO L3 in that row
+                project_l3_full = set() # Items that exist as L3
                 
-                # Must contain every item clicked in the sidebar
-                search_items = set(final_l1) | set(final_l2) | set(final_l3)
-                project_all_vals = p_l1 | p_l2 | p_l3
-                if not search_items.issubset(project_all_vals): return False
-                
-                # SPECIFICATION DEPTH LOGIC
-                # Does the project have any rows that end exactly at L2?
-                has_pure_l2 = any(pd.isna(row['Level3-1']) and pd.isna(row['Level3-2']) for _, row in group.iterrows())
-                # Does the project have any rows that contain L3?
-                has_any_l3 = len(p_l3) > 0
+                for _, row in group.iterrows():
+                    l2_val = str(row['Level2'])
+                    has_l3 = any(pd.notna(row[c]) for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'])
+                    
+                    if has_l3:
+                        for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
+                            if pd.notna(row[c]): project_l3_full.add(str(row[c]))
+                    else:
+                        project_l2_only.add(l2_val)
 
-                if specification == "Only L2": return has_pure_l2 and not has_any_l3
-                if specification == "Only L3": return has_any_l3
-                if specification == "L2 + L3": return has_pure_l2 and has_any_l3
+                # 2. Match based on user's sidebar clicks
+                match_l2 = set(final_l2).issubset(project_l2_only) if final_l2 else True
+                match_l3 = set(final_l3).issubset(project_l3_full) if final_l3 else True
+                match_l1 = set(final_l1).issubset(set(group['Level1'].dropna().astype(str))) if final_l1 else True
+
+                # 3. Specification enforcement
+                if not (match_l1 and match_l2 and match_l3): return False
+                
+                if specification == "Only L2": return len(project_l3_full) == 0
+                if specification == "Only L3": return len(project_l3_full) > 0
+                if specification == "L2 + L3": return len(project_l2_only) > 0 and len(project_l3_full) > 0
                 return True
 
             if final_l1 or final_l2 or final_l3:
-                matching_ids = df_raw.groupby('Project ID').filter(check_domino_match)['Project ID'].unique()
+                matching_ids = df_raw.groupby('Project ID').filter(check_leaf_node_match)['Project ID'].unique()
                 df = df_raw[df_raw['Project ID'].isin(matching_ids)]
 
         if q_search:
@@ -179,4 +187,4 @@ if check_password():
                             st.markdown(f"<p class='mono-text' style='color:{hex_color};'>• {chain}</p>", unsafe_allow_html=True)
                         zap = str(first_row['Approval Pack/NOC'])
                         if zap.startswith("http"): st.link_button("OPEN ZAP", zap, use_container_width=True)
-        else: st.warning("No records found.")
+        else: st.warning("No records found matching this exact leaf-node grouping.")
