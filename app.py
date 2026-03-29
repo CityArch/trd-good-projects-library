@@ -91,6 +91,8 @@ def load_data():
 # --- MAIN APP ---
 if check_password():
     if "reset_key" not in st.session_state: st.session_state.reset_key = 0
+    if "search_clicked" not in st.session_state: st.session_state.search_clicked = False
+    
     df_raw = load_data()
 
     if df_raw.empty:
@@ -130,4 +132,77 @@ if check_password():
         all_l3 = sorted([str(x) for x in pd.unique(raw_l3_m) if pd.notna(x)])
         final_l3 = st.sidebar.multiselect("L3 FOCUS AREAS", all_l3, key=f"m3_{st.session_state.reset_key}")
 
-    run_search = st.sidebar
+    # RESTORED SIDEBAR BUTTONS
+    st.sidebar.markdown("---")
+    if st.sidebar.button("🚀 EXECUTE SEARCH", use_container_width=True, type="primary"):
+        st.session_state.search_clicked = True
+
+    if st.sidebar.button("🧹 RESET SYSTEM", use_container_width=True):
+        st.session_state.reset_key += 1
+        st.session_state.search_clicked = False
+        st.rerun()
+
+    # 4. Results Processing
+    q_search = st.text_input("📝 KEYWORD SEARCH", placeholder="Search project name or ID...", key=f"q_search_{st.session_state.reset_key}")
+
+    # Logic: Run search if button was clicked OR if someone typed in Quick Search
+    if st.session_state.search_clicked or q_search:
+        df = df_raw.copy()
+        
+        # Collect every single item selected
+        search_items = set(final_l1) | set(final_l2) | set(final_l3)
+        
+        if search_items:
+            def check_universal_match(group):
+                project_pool = set()
+                for col in ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
+                    project_pool.update(group[col].dropna().astype(str))
+                # Must contain EVERY item clicked
+                return search_items.issubset(project_pool)
+            
+            matching_ids = df_raw.groupby('Project ID').filter(check_universal_match)['Project ID'].unique()
+            df = df_raw[df_raw['Project ID'].isin(matching_ids)]
+
+        if q_search:
+            df = df[df['Project'].str.contains(q_search, case=False, na=False) | 
+                    df['Project ID'].astype(str).str.contains(q_search, case=False, na=False)]
+
+        grouped = df.groupby('Project ID')
+        st.subheader(f"SYSTEM FOUND {len(grouped)} PROJECTS")
+        
+        if not df.empty:
+            grid = st.columns(3)
+            for idx, (proj_id, group) in enumerate(grouped):
+                first_row = group.iloc[0]
+                hex_color = get_l1_color(str(first_row['Level1']))
+                with grid[idx % 3]:
+                    with st.container(border=True):
+                        st.markdown(f"<div style='height:4px; width:40px; background-color:{hex_color}; margin-bottom:10px;'></div>", unsafe_allow_html=True)
+                        st.markdown(f"### {first_row['Project']}")
+                        st.markdown(f"<p class='mono-text'>ID: {proj_id} // CERT: {first_row['Cert Year']}</p>", unsafe_allow_html=True)
+                        
+                        for _, row in group.iterrows():
+                            l1 = str(row['Level1']); l2 = str(row['Level2'])
+                            l3_v = [str(row[c]) for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'] if pd.notna(row[c])]
+                            chain = f"{l1} > {l2}" + (f" > {', '.join(l3_v)}" if l3_v else "")
+                            st.markdown(f"<p class='mono-text' style='color:{hex_color};'>• {chain}</p>", unsafe_allow_html=True)
+
+                        zap = str(first_row['Approval Pack/NOC'])
+                        if zap.startswith("http"):
+                            st.link_button("OPEN ZAP", zap, use_container_width=True)
+        else:
+            st.warning("No records match every selected criteria.")
+    else:
+        st.info("SYSTEM ONLINE. SELECT FILTERS IN SIDEBAR OR USE KEYWORD SEARCH.")
+
+    # 5. Submission Terminal
+    st.divider()
+    st.header("📩 DATA CONTRIBUTION")
+    with st.expander("OPEN TERMINAL"):
+        with st.form("f_sub", clear_on_submit=True):
+            f_name = st.text_input("PROJECT NAME"); f_id = st.text_input("PROJECT ID")
+            if st.form_submit_button("SUBMIT"):
+                if f_name and f_id: st.success("Packet queued for review.")
+                else: st.error("Incomplete packet.")
+else:
+    st.stop()
