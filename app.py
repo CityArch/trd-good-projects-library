@@ -88,6 +88,10 @@ if check_password():
     if "reset_key" not in st.session_state: st.session_state.reset_key = 0
     df_raw = load_data()
 
+    if df_raw.empty:
+        st.warning("⚠️ Database 'projects.csv' not found or empty. Please upload data.")
+        st.stop()
+
     st.markdown("<div class='hero-section'><h1>🏙️ GOOD PROJECTS LIBRARY</h1><p style='color:#38BDF8;'>NYC ZONING ANALYTICS TERMINAL</p></div>", unsafe_allow_html=True)
 
     # 3. Sidebar Filters
@@ -96,4 +100,27 @@ if check_password():
 
     final_l1, final_l2, final_l3 = [], [], []
 
-    if search_mode
+    # FIXED: Added missing colon here
+    if search_mode == "Single-Action Search":
+        l1_opts = ["All"] + sorted([str(x) for x in df_raw['Level1'].dropna().unique()])
+        c1 = st.sidebar.selectbox("CATEGORY (L1)", l1_opts, key=f"s1_{st.session_state.reset_key}")
+        if c1 != "All":
+            final_l1 = [c1]
+            l2_opts = ["All"] + sorted([str(x) for x in df_raw[df_raw['Level1'] == c1]['Level2'].dropna().unique()])
+            c2 = st.sidebar.selectbox("SUB-CATEGORY (L2)", l2_opts, key=f"s2_{st.session_state.reset_key}")
+            if c2 != "All":
+                final_l2 = [c2]
+                l3_cols = ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
+                raw_l3 = df_raw[df_raw['Level2'] == c2][l3_cols].values.ravel('K')
+                l3_opts = ["All"] + sorted([str(x) for x in pd.unique(raw_l3) if pd.notna(x)])
+                if len(l3_opts) > 1:
+                    c3 = st.sidebar.selectbox("FOCUS (L3)", l3_opts, key=f"s3_{st.session_state.reset_key}")
+                    if c3 != "All": final_l3 = [c3]
+    else:
+        all_l1 = sorted([str(x) for x in df_raw['Level1'].dropna().unique()])
+        final_l1 = st.sidebar.multiselect("L1 CATEGORIES", all_l1, key=f"m1_{st.session_state.reset_key}")
+        all_l2 = sorted([str(x) for x in df_raw['Level2'].dropna().unique()])
+        final_l2 = st.sidebar.multiselect("L2 SUB-CATEGORIES", all_l2, key=f"m2_{st.session_state.reset_key}")
+        l3_cols_m = ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
+        raw_l3_m = df_raw[l3_cols_m].values.ravel('K')
+        all_l3 = sorted([str(x) for x in
