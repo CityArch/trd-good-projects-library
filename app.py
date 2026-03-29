@@ -108,7 +108,6 @@ if check_password():
     if st.session_state.search_active or q_search:
         df = df_raw.copy()
         
-        # --- LOGIC UPDATE: FILTERING ROWS FOR DISPLAY ---
         if search_mode == "Single-Action Search":
             if final_l1: df = df[df['Level1'].isin(final_l1)]
             if final_l2: df = df[df['Level2'].isin(final_l2)]
@@ -116,7 +115,6 @@ if check_password():
                 df = df[df['Level3-1'].isin(final_l3) | df['Level3-2'].isin(final_l3) | 
                         df['Level3-3'].isin(final_l3) | df['Level3-4'].isin(final_l3)]
         else:
-            # Multi-Action Logic
             if final_l1 or final_l2 or final_l3:
                 def check_project_match(group):
                     proj_l1 = set(group['Level1'].dropna())
@@ -128,11 +126,10 @@ if check_password():
                     m3 = all(i in proj_l3 for i in final_l3)
                     return m1 and m2 and m3
                 
-                # Get IDs of projects that satisfy ALL constraints
                 m_ids = df_raw.groupby('Project ID').filter(check_project_match)['Project ID'].unique()
                 df = df_raw[df_raw['Project ID'].isin(m_ids)]
                 
-                # FIX: Strictly show only rows matching the 'Deepest' selection
+                # Filter rows to show only the deepest matching layer
                 if final_l3:
                     df = df[df['Level3-1'].isin(final_l3) | df['Level3-2'].isin(final_l3) | 
                             df['Level3-3'].isin(final_l3) | df['Level3-4'].isin(final_l3)]
@@ -155,7 +152,20 @@ if check_password():
                     with st.container(border=True):
                         st.markdown(f"### {row['Project']}")
                         st.caption(f"ID: {row['Project ID']} | {row['Cert Year']}")
-                        st.write(f"**{row['Level1']}** > {row['Level2']}")
+                        
+                        # --- UI UPDATE: FULL CATEGORY CHAIN ---
+                        l1 = str(row['Level1']) if pd.notna(row['Level1']) else ""
+                        l2 = str(row['Level2']) if pd.notna(row['Level2']) else ""
+                        l3_vals = [str(row[c]) for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'] if pd.notna(row[c])]
+                        
+                        # Build the breadcrumb string
+                        chain = f"{l1} > {l2}"
+                        if l3_vals:
+                            chain += f" > {', '.join(l3_vals)}"
+                        
+                        st.markdown(f"🏷️ **{chain}**")
+                        # --------------------------------------
+
                         zap_url = str(row['Approval Pack/NOC'])
                         if zap_url.startswith("http"):
                             st.link_button("View on ZAP", zap_url, use_container_width=True)
@@ -226,15 +236,3 @@ if check_password():
                         "name": f_name, "id": f_id, "desc": f_desc,
                         "link": f_link, "date": str(f_date),
                         "cats": st.session_state.temp_cats.copy()
-                    })
-                    st.session_state.temp_cats = []
-                    st.success("Project submitted!")
-                    st.rerun()
-                else:
-                    st.error("Name and ID are required.")
-
-    st.divider()
-    st.caption("🔒 **Data Privacy:** Professional pilot tool. Restricted access.")
-
-else:
-    st.stop()
