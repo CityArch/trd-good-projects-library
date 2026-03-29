@@ -65,30 +65,24 @@ def check_password():
                 st.error("Invalid credentials.")
     return False
 
-# 2. Data Loading with KEYERROR FIX
+# 2. Data Loading with Header Cleaning
 @st.cache_data
 def load_data():
     file_path = 'projects.csv'
     if not os.path.exists(file_path):
         return pd.DataFrame()
     try:
-        # Use utf-8-sig to automatically handle hidden Excel characters (BOM)
         try:
             df = pd.read_csv(file_path, encoding='utf-8-sig')
         except:
             df = pd.read_csv(file_path, encoding='cp1252')
-        
-        # Clean headers: remove spaces, force strings, remove invisible markers
         df.columns = [str(c).strip().replace('ï»¿', '') for c in df.columns]
-        
-        # Safety check for Level1
         if 'Level1' not in df.columns:
-            st.error(f"Critical Error: 'Level1' column not detected. Headers found: {list(df.columns)}")
+            st.error(f"Header Error. Found: {list(df.columns)}")
             st.stop()
-            
         return df[df['Project'].notna()]
     except Exception as e:
-        st.error(f"Data Loading Error: {e}")
+        st.error(f"Load Error: {e}")
         return pd.DataFrame()
 
 # --- MAIN APP ---
@@ -96,10 +90,6 @@ if check_password():
     if "reset_key" not in st.session_state: st.session_state.reset_key = 0
     if "search_clicked" not in st.session_state: st.session_state.search_clicked = False
     df_raw = load_data()
-
-    if df_raw.empty:
-        st.warning("⚠️ Database 'projects.csv' is empty or missing.")
-        st.stop()
 
     st.markdown("<div class='hero-section'><h1>🏙️ GOOD PROJECTS LIBRARY</h1><p style='color:#38BDF8;'>NYC ZONING ANALYTICS TERMINAL</p></div>", unsafe_allow_html=True)
 
@@ -119,4 +109,17 @@ if check_password():
             c2 = st.sidebar.selectbox("L2 (Daddy)", l2_opts, key=f"s2_{st.session_state.reset_key}")
             if c2 != "All":
                 final_l2 = [c2]
-                l3_cols = ['Level3-1', 'Level
+                l3_cols = ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
+                raw_l3 = df_raw[df_raw['Level2'] == c2][l3_cols].values.ravel('K')
+                l3_opts = ["All"] + sorted([str(x) for x in pd.unique(raw_l3) if pd.notna(x)])
+                if len(l3_opts) > 1:
+                    c3 = st.sidebar.selectbox("L3 (Son)", l3_opts, key=f"s3_{st.session_state.reset_key}")
+                    if c3 != "All": final_l3 = [c3]
+    else:
+        sub_logic = st.sidebar.selectbox("LOGIC DEPTH", ["Select Depth...", "L2 + L3", "Only L3", "Only L2"], key=f"sub_log_{st.session_state.reset_key}")
+        all_l1 = sorted([str(x) for x in df_raw['Level1'].dropna().unique()])
+        final_l1 = st.sidebar.multiselect("L1 (Grandpa)", all_l1, key=f"m1_{st.session_state.reset_key}")
+        all_l2 = sorted([str(x) for x in df_raw['Level2'].dropna().unique()])
+        final_l2 = st.sidebar.multiselect("L2 (Daddy)", all_l2, key=f"m2_{st.session_state.reset_key}")
+        l3_cols_m = ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
+        raw_l3_m = df_raw[l3_cols_m].values.ravel('K')
