@@ -77,9 +77,6 @@ def load_data():
         except:
             df = pd.read_csv(file_path, encoding='cp1252')
         df.columns = [str(c).strip().replace('ï»¿', '') for c in df.columns]
-        if 'Level1' not in df.columns:
-            st.error(f"Header Error. Found: {list(df.columns)}")
-            st.stop()
         return df[df['Project'].notna()]
     except Exception as e:
         st.error(f"Load Error: {e}")
@@ -102,24 +99,111 @@ if check_password():
 
     if search_mode == "Single-Action Search":
         l1_opts = ["All"] + sorted([str(x) for x in df_raw['Level1'].dropna().unique()])
-        c1 = st.sidebar.selectbox("L1 (Grandpa)", l1_opts, key=f"s1_{st.session_state.reset_key}")
+        c1 = st.sidebar.selectbox("L1", l1_opts, key=f"s1_{st.session_state.reset_key}")
         if c1 != "All":
             final_l1 = [c1]
             l2_opts = ["All"] + sorted([str(x) for x in df_raw[df_raw['Level1'] == c1]['Level2'].dropna().unique()])
-            c2 = st.sidebar.selectbox("L2 (Daddy)", l2_opts, key=f"s2_{st.session_state.reset_key}")
+            c2 = st.sidebar.selectbox("L2", l2_opts, key=f"s2_{st.session_state.reset_key}")
             if c2 != "All":
                 final_l2 = [c2]
                 l3_cols = ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
                 raw_l3 = df_raw[df_raw['Level2'] == c2][l3_cols].values.ravel('K')
                 l3_opts = ["All"] + sorted([str(x) for x in pd.unique(raw_l3) if pd.notna(x)])
                 if len(l3_opts) > 1:
-                    c3 = st.sidebar.selectbox("L3 (Son)", l3_opts, key=f"s3_{st.session_state.reset_key}")
+                    c3 = st.sidebar.selectbox("L3", l3_opts, key=f"s3_{st.session_state.reset_key}")
                     if c3 != "All": final_l3 = [c3]
     else:
-        sub_logic = st.sidebar.selectbox("LOGIC DEPTH", ["Select Depth...", "L2 + L3", "Only L3", "Only L2"], key=f"sub_log_{st.session_state.reset_key}")
+        # Renamed Logic Depth to Specification
+        sub_logic = st.sidebar.selectbox("SPECIFICATION", ["Select Specification...", "L2 + L3", "Only L3", "Only L2"], key=f"sub_log_{st.session_state.reset_key}")
+        
         all_l1 = sorted([str(x) for x in df_raw['Level1'].dropna().unique()])
-        final_l1 = st.sidebar.multiselect("L1 (Grandpa)", all_l1, key=f"m1_{st.session_state.reset_key}")
+        final_l1 = st.sidebar.multiselect("L1", all_l1, key=f"m1_{st.session_state.reset_key}")
+        
         all_l2 = sorted([str(x) for x in df_raw['Level2'].dropna().unique()])
-        final_l2 = st.sidebar.multiselect("L2 (Daddy)", all_l2, key=f"m2_{st.session_state.reset_key}")
+        final_l2 = st.sidebar.multiselect("L2", all_l2, key=f"m2_{st.session_state.reset_key}")
+        
+        # Fixed L3 visibility in Multi-Action mode
         l3_cols_m = ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
         raw_l3_m = df_raw[l3_cols_m].values.ravel('K')
+        all_l3 = sorted([str(x) for x in pd.unique(raw_l3_m) if pd.notna(x)])
+        final_l3 = st.sidebar.multiselect("L3", all_l3, key=f"m3_{st.session_state.reset_key}")
+
+    st.sidebar.markdown("---")
+    if st.sidebar.button("🚀 EXECUTE SEARCH", use_container_width=True, type="primary"):
+        if search_mode == "Multi-Action Search" and sub_logic == "Select Specification...":
+            st.sidebar.error("Please select a Specification depth.")
+        else:
+            st.session_state.search_clicked = True
+            
+    if st.sidebar.button("🧹 RESET SYSTEM", use_container_width=True):
+        st.session_state.reset_key += 1
+        st.session_state.search_clicked = False
+        st.rerun()
+
+    # 4. Results Processing
+    q_search = st.text_input("📝 KEYWORD SEARCH", placeholder="Search project name or ID...", key=f"q_{st.session_state.reset_key}")
+
+    if st.session_state.search_clicked or q_search:
+        df = df_raw.copy()
+        
+        if search_mode == "Single-Action Search":
+            if final_l1: df = df[df['Level1'].isin(final_l1)]
+            if final_l2: df = df[df['Level2'].isin(final_l2)]
+            if final_l3:
+                df = df[df['Level3-1'].isin(final_l3) | df['Level3-2'].isin(final_l3) | 
+                        df['Level3-3'].isin(final_l3) | df['Level3-4'].isin(final_l3)]
+        else:
+            # RELATIONAL "AND" HIERARCHY LOGIC
+            search_items = set(final_l1) | set(final_l2) | set(final_l3)
+            
+            def check_hierarchy_match(group):
+                project_pool = set()
+                l3_exists_in_project = False
+                
+                for _, row in group.iterrows():
+                    has_l3 = any(pd.notna(row[c]) for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'])
+                    if has_l3: l3_exists_in_project = True
+                    
+                    project_pool.update([str(row['Level1']), str(row['Level2'])])
+                    for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
+                        if pd.notna(row[c]): project_pool.add(str(row[c]))
+
+                # Core AND logic: Project must contain EVERY selected filter item
+                if not search_items.issubset(project_pool): return False
+                
+                # Filter by Specification Depth
+                if sub_logic == "Only L2":
+                    return not l3_exists_in_project
+                elif sub_logic == "Only L3":
+                    return l3_exists_in_project
+                return True 
+
+            if search_items:
+                matching_ids = df_raw.groupby('Project ID').filter(check_hierarchy_match)['Project ID'].unique()
+                df = df_raw[df_raw['Project ID'].isin(matching_ids)]
+
+        if q_search:
+            df = df[df['Project'].str.contains(q_search, case=False, na=False) | df['Project ID'].astype(str).str.contains(q_search, case=False, na=False)]
+
+        grouped = df.groupby('Project ID')
+        st.subheader(f"SYSTEM FOUND {len(grouped)} PROJECTS")
+        
+        if not df.empty:
+            grid = st.columns(3)
+            for idx, (proj_id, group) in enumerate(grouped):
+                first_row = group.iloc[0]
+                hex_color = get_l1_color(str(first_row['Level1']))
+                with grid[idx % 3]:
+                    with st.container(border=True):
+                        st.markdown(f"<div style='height:4px; width:40px; background-color:{hex_color}; margin-bottom:10px;'></div>", unsafe_allow_html=True)
+                        st.markdown(f"### {first_row['Project']}")
+                        st.markdown(f"<p class='mono-text'>ID: {proj_id} // CERT: {first_row['Cert Year']}</p>", unsafe_allow_html=True)
+                        for _, row in group.iterrows():
+                            l1, l2 = str(row['Level1']), str(row['Level2'])
+                            l3_v = [str(row[c]) for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'] if pd.notna(row[c])]
+                            chain = f"{l1} > {l2}" + (f" > {', '.join(l3_v)}" if l3_v else "")
+                            st.markdown(f"<p class='mono-text' style='color:{hex_color};'>• {chain}</p>", unsafe_allow_html=True)
+                        zap = str(first_row['Approval Pack/NOC'])
+                        if zap.startswith("http"): st.link_button("OPEN ZAP", zap, use_container_width=True)
+        else: st.warning("No records match your exact specification.")
+    else: st.info("SYSTEM ONLINE. SELECT SPECIFICATION AND FILTERS TO BEGIN.")
