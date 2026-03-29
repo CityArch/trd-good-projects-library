@@ -188,4 +188,15 @@ if check_password():
 
     # 6. SUBMISSION FORM
     st.divider()
-    st.header("📩 Submit a '
+    st.header("📩 Submit a 'Good Project'")
+    with st.expander("Open Submission Form"):
+        st.subheader("1. Categorize Project")
+        ca, cb, cc = st.columns(3)
+        with ca: 
+            s1 = st.selectbox("Category (L1)", sorted(df_raw['Level1'].dropna().unique()), key="sub_l1")
+        with cb: 
+            s2_opts = sorted(df_raw[df_raw['Level1'] == s1]['Level2'].dropna().unique())
+            s2_sel = st.selectbox("Sub-Category (L2)", s2_opts, key="sub_l2")
+        with cc:
+            raw_l3_sub = df_raw[df_raw['Level2'] == s2_sel][['Level3-1','Level3-2','Level3-3','Level3-4']].values.ravel('K')
+            s3_list = sorted([str(x) for x in pd
