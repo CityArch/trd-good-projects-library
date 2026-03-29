@@ -53,7 +53,6 @@ def check_password():
             else: st.error("Invalid credentials.")
     return False
 
-# FIXED: AGGRESSIVE DATA CLEANING TO PREVENT KEYERROR
 @st.cache_data
 def load_data():
     file_path = 'projects.csv'
@@ -63,12 +62,9 @@ def load_data():
             df = pd.read_csv(file_path, encoding='utf-8-sig')
         except:
             df = pd.read_csv(file_path, encoding='cp1252')
-        # This line strips spaces and removes invisible Excel BOM characters
         df.columns = [str(c).strip().replace('ï»¿', '') for c in df.columns]
         return df[df['Project'].notna()]
-    except Exception as e:
-        st.error(f"CSV Load Error: {e}")
-        return pd.DataFrame()
+    except: return pd.DataFrame()
 
 if check_password():
     if "reset_key" not in st.session_state: st.session_state.reset_key = 0
@@ -135,24 +131,30 @@ if check_password():
                 df = df[df['Level3-1'].isin(final_l3) | df['Level3-2'].isin(final_l3) | 
                         df['Level3-3'].isin(final_l3) | df['Level3-4'].isin(final_l3)]
         else:
-            # LEAF-NODE SPECIFICATION LOGIC FOR DOMINO CASE
+            # RELIANCE ON NORMALIZED MATCHING (STOPS TYPO CRASHES)
             def check_leaf_node_match(group):
                 project_l2_only = set() 
                 project_l3_full = set() 
+                project_l1_set = set(group['Level1'].dropna().astype(str).str.strip().str.lower())
                 
                 for _, row in group.iterrows():
-                    l2_val = str(row['Level2'])
+                    l2_val = str(row['Level2']).strip().lower()
                     has_l3 = any(pd.notna(row[c]) for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'])
                     if has_l3:
                         for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
-                            if pd.notna(row[c]): project_l3_full.add(str(row[c]))
+                            if pd.notna(row[c]): project_l3_full.add(str(row[c]).strip().lower())
                     else:
                         project_l2_only.add(l2_val)
 
-                # Matching logic
-                match_l2 = set(final_l2).issubset(project_l2_only) if final_l2 else True
-                match_l3 = set(final_l3).issubset(project_l3_full) if final_l3 else True
-                match_l1 = set(final_l1).issubset(set(group['Level1'].dropna().astype(str))) if final_l1 else True
+                # Normalize user selections
+                sel_l1 = {x.strip().lower() for x in final_l1}
+                sel_l2 = {x.strip().lower() for x in final_l2}
+                sel_l3 = {x.strip().lower() for x in final_l3}
+
+                # Check AND logic
+                match_l1 = sel_l1.issubset(project_l1_set) if sel_l1 else True
+                match_l2 = sel_l2.issubset(project_l2_only) if sel_l2 else True
+                match_l3 = sel_l3.issubset(project_l3_full) if sel_l3 else True
 
                 if not (match_l1 and match_l2 and match_l3): return False
                 
@@ -188,4 +190,4 @@ if check_password():
                             st.markdown(f"<p class='mono-text' style='color:{hex_color};'>• {chain}</p>", unsafe_allow_html=True)
                         zap = str(first_row['Approval Pack/NOC'])
                         if zap.startswith("http"): st.link_button("OPEN ZAP", zap, use_container_width=True)
-        else: st.warning("No records found.")
+        else: st.warning("Zero projects match. Check your Excel for typos in 'Yards' or 'Bulk_Waivers'.")
