@@ -149,4 +149,100 @@ if check_password():
                 with grid[idx % 3]:
                     with st.container(border=True):
                         st.markdown(f"### {row['Project']}")
-                        st.caption(f"
+                        st.caption(f"ID: {row['Project ID']} | {row['Cert Year']}")
+                        
+                        l1 = str(row['Level1']) if pd.notna(row['Level1']) else ""
+                        l2 = str(row['Level2']) if pd.notna(row['Level2']) else ""
+                        l3_vals = [str(row[c]) for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'] if pd.notna(row[c])]
+                        
+                        chain = f"{l1} > {l2}"
+                        if l3_vals:
+                            chain += f" > {', '.join(l3_vals)}"
+                        
+                        st.markdown(f"🏷️ **{chain}**")
+
+                        zap_url = str(row['Approval Pack/NOC'])
+                        if zap_url.startswith("http"):
+                            st.link_button("View on ZAP", zap_url, use_container_width=True)
+                        else:
+                            st.button("No ZAP Link", disabled=True, use_container_width=True)
+        else:
+            st.warning("No projects match that exact combination.")
+    else:
+        st.info("👈 Use the sidebar to explore the library.")
+
+    # 5. ADMIN REVIEW
+    st.divider()
+    st.header("⏳ Recently Submitted Projects")
+    official_ids = set(df_raw['Project ID'].astype(str).unique())
+    st.session_state.submitted_projects = [p for p in st.session_state.submitted_projects if str(p['id']) not in official_ids]
+
+    if not st.session_state.submitted_projects:
+        st.write("No new submissions pending review.")
+    else:
+        for p in st.session_state.submitted_projects:
+            with st.expander(f"Review: {p['name']} (ID: {p['id']})"):
+                st.write(f"**Description:** {p['desc']}")
+                st.write(f"**Categories:** {', '.join(p['cats'])}")
+                st.write(f"**Link:** {p['link']} | **Date:** {p['date']}")
+
+    # 6. SUBMISSION FORM
+    st.divider()
+    st.header("📩 Submit a 'Good Project'")
+    with st.expander("Open Submission Form"):
+        st.subheader("1. Categorize Project")
+        ca, cb, cc = st.columns(3)
+        with ca: 
+            s1 = st.selectbox("Category (L1)", sorted(df_raw['Level1'].dropna().unique()), key="sub_l1")
+        with cb: 
+            s2_opts = sorted(df_raw[df_raw['Level1'] == s1]['Level2'].dropna().unique())
+            s2_sel = st.selectbox("Sub-Category (L2)", s2_opts, key="sub_l2")
+        with cc:
+            raw_l3_sub = df_raw[df_raw['Level2'] == s2_sel][['Level3-1','Level3-2','Level3-3','Level3-4']].values.ravel('K')
+            s3_list = sorted([str(x) for x in pd.unique(raw_l3_sub) if pd.notna(x)])
+            s3_sel = st.multiselect("Focus (L3)", s3_list, key="sub_l3")
+
+        if st.button("➕ Complete Selections"):
+            cat_label = f"{s1} > {s2_sel}" + (f" ({', '.join(s3_sel)})" if s3_sel else "")
+            if cat_label not in st.session_state.temp_cats:
+                st.session_state.temp_cats.append(cat_label)
+                st.toast("Added Category!")
+
+        if st.session_state.temp_cats:
+            st.write("**Selections:**")
+            for cat in st.session_state.temp_cats:
+                st.write(f"- {cat}")
+            if st.button("🗑️ Reset Categories"):
+                st.session_state.temp_cats = []
+                st.rerun()
+
+        st.markdown("---")
+        st.subheader("2. Project Details")
+        with st.form("final_sub", clear_on_submit=True):
+            f_name = st.text_input("Project Name*")
+            f_id = st.text_input("Project ID*")
+            f_desc = st.text_area("Description")
+            f_link = st.text_input("ZAP Link")
+            f_date = st.date_input("Certification Date", date.today())
+            
+            if st.form_submit_button("Submit Project"):
+                if f_name and f_id:
+                    st.session_state.submitted_projects.append({
+                        "name": f_name, 
+                        "id": f_id, 
+                        "desc": f_desc,
+                        "link": f_link, 
+                        "date": str(f_date),
+                        "cats": st.session_state.temp_cats.copy()
+                    })
+                    st.session_state.temp_cats = []
+                    st.success("Project submitted!")
+                    st.rerun()
+                else:
+                    st.error("Name and ID are required.")
+
+    st.divider()
+    st.caption("🔒 **Data Privacy:** Professional pilot tool. Restricted access.")
+
+else:
+    st.stop()
