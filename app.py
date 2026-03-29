@@ -23,52 +23,28 @@ img_base64 = get_base64_image("image.jpg")
 # --- TECH-SAVVY CSS ---
 st.markdown(f"""
     <style>
-    .stApp {{
-        background-color: #0F172A;
-        color: #F8FAFC;
-    }}
+    .stApp {{ background-color: #0F172A; color: #F8FAFC; }}
     .hero-section {{
         background-image: linear-gradient(rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.85)), url("data:image/jpg;base64,{img_base64}");
-        background-size: cover;
-        background-position: center;
-        padding: 60px 20px;
-        border-radius: 15px;
-        border: 1px solid #334155;
-        text-align: center;
-        margin-bottom: 30px;
+        background-size: cover; background-position: center;
+        padding: 60px 20px; border-radius: 15px; border: 1px solid #334155;
+        text-align: center; margin-bottom: 30px;
     }}
-    section[data-testid="stSidebar"] {{
-        background-color: #1E293B !important;
-        border-right: 1px solid #334155;
-    }}
-    .mono-text {{
-        font-family: 'Roboto Mono', monospace;
-        font-size: 0.85rem;
-        color: #94A3B8;
-    }}
+    section[data-testid="stSidebar"] {{ background-color: #1E293B !important; border-right: 1px solid #334155; }}
+    .mono-text {{ font-family: 'Roboto Mono', monospace; font-size: 0.85rem; color: #94A3B8; }}
     div[data-testid="stVerticalBlock"] > div[style*="border"] {{
         background: rgba(30, 41, 59, 0.7) !important;
-        backdrop-filter: blur(10px);
-        border: 1px solid #334155 !important;
-        border-radius: 12px !important;
+        backdrop-filter: blur(10px); border: 1px solid #334155 !important; border-radius: 12px !important;
     }}
-    .stButton>button {{
-        border-radius: 8px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        font-weight: 600;
-    }}
+    .stButton>button {{ border-radius: 8px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }}
     </style>
     """, unsafe_allow_html=True)
 
 # --- COLOR MAPPING ---
 def get_l1_color(l1_name):
     mapping = {
-        "Bulk_Waivers": "#38BDF8",
-        "Use_Waivers": "#4ADE80",
-        "Parking_Waivers": "#FB923C",
-        "Housing_Actions": "#F87171",
-        "Open_Space": "#FACC15"
+        "Bulk_Waivers": "#38BDF8", "Use_Waivers": "#4ADE80",
+        "Parking_Waivers": "#FB923C", "Housing_Actions": "#F87171", "Open_Space": "#FACC15"
     }
     return mapping.get(l1_name, "#94A3B8")
 
@@ -93,6 +69,9 @@ def check_password():
 @st.cache_data
 def load_data():
     file_path = 'projects.csv'
+    if not os.path.exists(file_path):
+        st.error("File 'projects.csv' not found.")
+        return pd.DataFrame()
     try:
         try:
             df = pd.read_csv(file_path, encoding='utf-8-sig')
@@ -108,10 +87,6 @@ def load_data():
 # --- MAIN APP ---
 if check_password():
     if "reset_key" not in st.session_state: st.session_state.reset_key = 0
-    if "search_active" not in st.session_state: st.session_state.search_active = False
-    if "submitted_projects" not in st.session_state: st.session_state.submitted_projects = []
-    if "temp_cats" not in st.session_state: st.session_state.temp_cats = []
-
     df_raw = load_data()
 
     st.markdown("<div class='hero-section'><h1>🏙️ GOOD PROJECTS LIBRARY</h1><p style='color:#38BDF8;'>NYC ZONING ANALYTICS TERMINAL</p></div>", unsafe_allow_html=True)
@@ -147,18 +122,18 @@ if check_password():
         all_l3 = sorted([str(x) for x in pd.unique(raw_l3_m) if pd.notna(x)])
         final_l3 = st.sidebar.multiselect("L3 FOCUS AREAS", all_l3, key=f"m3_{st.session_state.reset_key}")
 
-    if st.sidebar.button("🚀 EXECUTE SEARCH", use_container_width=True, type="primary"):
-        st.session_state.search_active = True
+    run_search = st.sidebar.button("🚀 EXECUTE SEARCH", use_container_width=True, type="primary")
     if st.sidebar.button("🧹 RESET", use_container_width=True):
         st.session_state.reset_key += 1
-        st.session_state.search_active = False
         st.rerun()
 
-    # 4. Results
+    # 4. Results Processing
     q_search = st.text_input("📝 KEYWORD SEARCH", placeholder="Search project name or ID...", key=f"q_search_{st.session_state.reset_key}")
 
-    if st.session_state.search_active or q_search:
+    # FIX: Trigger filter if EITHER button is clicked OR keyword is entered
+    if run_search or q_search or (search_mode == "Single-Action Search" and final_l1):
         df = df_raw.copy()
+        
         if search_mode == "Single-Action Search":
             if final_l1: df = df[df['Level1'].isin(final_l1)]
             if final_l2: df = df[df['Level2'].isin(final_l2)]
@@ -170,7 +145,10 @@ if check_password():
                 def check_match(group):
                     p_l1 = set(group['Level1'].dropna()); p_l2 = set(group['Level2'].dropna())
                     p_l3 = {str(x) for x in group[['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']].values.flatten() if pd.notna(x)}
-                    return all(i in p_l1 for i in final_l1) and all(i in p_l2 for i in final_l2) and all(i in p_l3 for i in final_l3)
+                    m1 = all(i in p_l1 for i in final_l1) if final_l1 else True
+                    m2 = all(i in p_l2 for i in final_l2) if final_l2 else True
+                    m3 = all(i in p_l3 for i in final_l3) if final_l3 else True
+                    return m1 and m2 and m3
                 m_ids = df_raw.groupby('Project ID').filter(check_match)['Project ID'].unique()
                 df = df_raw[df_raw['Project ID'].isin(m_ids)]
 
@@ -183,3 +161,19 @@ if check_password():
         
         if not df.empty:
             grid = st.columns(3)
+            for idx, (proj_id, group) in enumerate(grouped):
+                first_row = group.iloc[0]
+                hex_color = get_l1_color(str(first_row['Level1']))
+                with grid[idx % 3]:
+                    with st.container(border=True):
+                        st.markdown(f"<div style='height:4px; width:40px; background-color:{hex_color}; margin-bottom:10px;'></div>", unsafe_allow_html=True)
+                        st.markdown(f"### {first_row['Project']}")
+                        st.markdown(f"<p class='mono-text'>ID: {proj_id} // CERT: {first_row['Cert Year']}</p>", unsafe_allow_html=True)
+                        for _, row in group.iterrows():
+                            l1 = str(row['Level1']); l2 = str(row['Level2'])
+                            l3_v = [str(row[c]) for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'] if pd.notna(row[c])]
+                            chain = f"{l1} > {l2}" + (f" > {', '.join(l3_v)}" if l3_v else "")
+                            st.markdown(f"<p class='mono-text' style='color:{hex_color};'>• {chain}</p>", unsafe_allow_html=True)
+                        zap = str(first_row['Approval Pack/NOC'])
+                        if zap.startswith("http"): st.link_button("OPEN ZAP", zap, use_container_width=True)
+        else
