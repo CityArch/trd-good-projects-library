@@ -11,7 +11,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- HELPER: IMAGE TO BASE64 ---
+# --- HELPER: IMAGE TO BASE64 FOR CSS BACKGROUND ---
 def get_base64_image(image_path):
     if os.path.exists(image_path):
         with open(image_path, "rb") as img_file:
@@ -20,8 +20,8 @@ def get_base64_image(image_path):
 
 img_base64 = get_base64_image("image.jpg")
 
-# --- TECH-SAVVY CSS WITH HERO BACKGROUND ---
-bg_style = f"""
+# --- TECH-SAVVY CSS INJECTION ---
+st.markdown(f"""
     <style>
     .stApp {{
         background-color: #0F172A;
@@ -56,6 +56,12 @@ bg_style = f"""
         backdrop-filter: blur(10px);
         border: 1px solid #334155 !important;
         border-radius: 12px !important;
+        transition: all 0.3s ease;
+    }}
+    
+    div[data-testid="stVerticalBlock"] > div[style*="border"]:hover {{
+        border-color: #38BDF8 !important;
+        box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
     }}
 
     .stButton>button {{
@@ -65,8 +71,7 @@ bg_style = f"""
         font-weight: 600;
     }}
     </style>
-"""
-st.markdown(bg_style, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 # --- COLOR MAPPING ---
 def get_l1_color(l1_name):
@@ -98,7 +103,7 @@ def check_password():
                 st.error("Invalid credentials.")
     return False
 
-# 2. Data Loading
+# 2. Data Loading with Header Cleaning
 @st.cache_data
 def load_data():
     file_path = 'projects.csv'
@@ -107,17 +112,20 @@ def load_data():
             df = pd.read_csv(file_path, encoding='utf-8-sig')
         except:
             df = pd.read_csv(file_path, encoding='cp1252')
-        df.columns = [str(c).strip() for c in df.columns]
+        
+        # CLEANING: Remove hidden spaces and Excel artifacts
+        df.columns = [str(c).strip().replace('ï»¿', '') for c in df.columns]
         df = df[df['Project'].notna()]
         return df
     except Exception as e:
         st.error(f"Load Error: {e}")
         return pd.DataFrame()
 
-# --- MAIN APP ---
+# --- MAIN APP LOGIC ---
 if check_password():
     if "reset_key" not in st.session_state: st.session_state.reset_key = 0
     if "search_active" not in st.session_state: st.session_state.search_active = False
+    if "submitted_projects" not in st.session_state: st.session_state.submitted_projects = []
     if "temp_cats" not in st.session_state: st.session_state.temp_cats = []
 
     df_raw = load_data()
@@ -126,45 +134,36 @@ if check_password():
     st.markdown("""
         <div class='hero-section'>
             <h1 style='margin:0; font-size: 3rem;'>🏙️ GOOD PROJECTS LIBRARY</h1>
-            <p style='color:#38BDF8; font-family:monospace;'>NYC ZONING ANALYTICS & PROJECT ARCHIVE</p>
+            <p style='color:#38BDF8; font-family:monospace;'>NYC ZONING ANALYTICS TERMINAL</p>
         </div>
     """, unsafe_allow_html=True)
 
-    # 3. Sidebar
-    st.sidebar.markdown("### 🛠️ FILTERS")
+    # 3. Sidebar - Advanced Filtering
+    st.sidebar.markdown("### 🛠️ SYSTEM FILTERS")
     search_mode = st.sidebar.radio("MODE", ["Single-Action Search", "Multi-Action Search"], key=f"m_{st.session_state.reset_key}")
-    
-    # ... (Rest of search logic remains same as previous tech-savvy version)
-    # [Logic for building final_l1, l2, l3 based on search_mode]
-    
-    # Simplified Search Implementation for space
-    all_l1 = sorted([str(x) for x in df_raw['Level1'].dropna().unique()])
-    final_l1 = st.sidebar.multiselect("L1 CATEGORIES", all_l1, key=f"m1_{st.session_state.reset_key}")
-    
-    if st.sidebar.button("🚀 EXECUTE SEARCH", use_container_width=True, type="primary"):
-        st.session_state.search_active = True
 
-    # 4. Results
-    q_search = st.text_input("📝 KEYWORD SEARCH", placeholder="Search project name or ID...", key=f"qs_{st.session_state.reset_key}")
+    final_l1, final_l2, final_l3 = [], [], []
 
-    if st.session_state.search_active or q_search:
-        df = df_raw.copy()
-        if final_l1: df = df[df['Level1'].isin(final_l1)]
-        if q_search: df = df[df['Project'].str.contains(q_search, case=False, na=False)]
-        
-        grouped = df.groupby('Project ID')
-        st.subheader(f"SYSTEM FOUND {len(grouped)} PROJECTS")
-        
-        grid = st.columns(3)
-        for idx, (proj_id, group) in enumerate(grouped):
-            first_row = group.iloc[0]
-            hex_color = get_l1_color(str(first_row['Level1']))
-            with grid[idx % 3]:
-                with st.container(border=True):
-                    st.markdown(f"<div style='height:4px; width:40px; background-color:{hex_color}; margin-bottom:10px;'></div>", unsafe_allow_html=True)
-                    st.markdown(f"### {first_row['Project']}")
-                    st.markdown(f"<p class='mono-text'>ID: {proj_id}</p>", unsafe_allow_html=True)
-                    zap = str(first_row['Approval Pack/NOC'])
-                    if zap.startswith("http"): st.link_button("OPEN ZAP", zap, use_container_width=True)
+    if search_mode == "Single-Action Search":
+        l1_opts = ["All"] + sorted([str(x) for x in df_raw['Level1'].dropna().unique()])
+        c1 = st.sidebar.selectbox("CATEGORY (L1)", l1_opts, key=f"s1_{st.session_state.reset_key}")
+        if c1 != "All":
+            final_l1 = [c1]
+            l2_opts = ["All"] + sorted([str(x) for x in df_raw[df_raw['Level1'] == c1]['Level2'].dropna().unique()])
+            c2 = st.sidebar.selectbox("SUB-CATEGORY (L2)", l2_opts, key=f"s2_{st.session_state.reset_key}")
+            if c2 != "All":
+                final_l2 = [c2]
+                l3_cols = ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
+                raw_l3 = df_raw[df_raw['Level2'] == c2][l3_cols].values.ravel('K')
+                l3_opts = ["All"] + sorted([str(x) for x in pd.unique(raw_l3) if pd.notna(x)])
+                if len(l3_opts) > 1:
+                    c3 = st.sidebar.selectbox("FOCUS (L3)", l3_opts, key=f"s3_{st.session_state.reset_key}")
+                    if c3 != "All": final_l3 = [c3]
     else:
-        st.info("DASHBOARD SECURE. SELECT FILTERS TO BEGIN QUERY.")
+        all_l1 = sorted([str(x) for x in df_raw['Level1'].dropna().unique()])
+        final_l1 = st.sidebar.multiselect("L1 CATEGORIES", all_l1, key=f"m1_{st.session_state.reset_key}")
+        all_l2 = sorted([str(x) for x in df_raw['Level2'].dropna().unique()])
+        final_l2 = st.sidebar.multiselect("L2 SUB-CATEGORIES", all_l2, key=f"m2_{st.session_state.reset_key}")
+        raw_l3_m = df_raw[['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']].values.ravel('K')
+        all_l3 = sorted([str(x) for x in pd.unique(raw_l3_m) if pd.notna(x)])
+        final_l3 = st.sidebar.multiselect("L3 FOCUS AREAS", all_l3, key=f"m
