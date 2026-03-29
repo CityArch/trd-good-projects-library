@@ -13,28 +13,25 @@ st.set_page_config(
 def check_password():
     if "password_correct" not in st.session_state:
         st.session_state.password_correct = False
-    
     if st.session_state.password_correct:
         return True
 
     st.title("🔒 TRD Project Library Access")
     placeholder = st.empty()
-    
     with placeholder.form("login_form"):
         st.markdown("Please enter the access password to continue.")
         password = st.text_input("Password", type="password")
         submit_password = st.form_submit_button("Enter")
-        
         if submit_password:
             if password == "1234567890":
                 st.session_state.password_correct = True
                 placeholder.empty()
                 st.rerun()
             else:
-                st.error("😕 Incorrect password. Please try again.")
+                st.error("😕 Incorrect password.")
     return False
 
-# 2. Data Loading with Header Cleaning
+# 2. Data Loading
 @st.cache_data
 def load_data():
     file_path = 'projects.csv'
@@ -43,10 +40,7 @@ def load_data():
             df = pd.read_csv(file_path, encoding='utf-8')
         except UnicodeDecodeError:
             df = pd.read_csv(file_path, encoding='cp1252')
-        
-        # Clean column names to prevent KeyErrors
         df.columns = [str(c).strip() for c in df.columns]
-        
         df = df[df['Project'].notna()]
         df = df[~df['Project'].str.contains("Insert your project name", na=False)]
         return df
@@ -57,25 +51,16 @@ def load_data():
 # --- RUN AUTHENTICATION ---
 if check_password():
     
-    # 3. Session State Initialization
-    if "reset_key" not in st.session_state:
-        st.session_state.reset_key = 0
-    if "search_active" not in st.session_state:
-        st.session_state.search_active = False
-    if "submitted_projects" not in st.session_state:
-        st.session_state.submitted_projects = []
-    if "temp_cats" not in st.session_state:
-        st.session_state.temp_cats = []
+    if "reset_key" not in st.session_state: st.session_state.reset_key = 0
+    if "search_active" not in st.session_state: st.session_state.search_active = False
+    if "submitted_projects" not in st.session_state: st.session_state.submitted_projects = []
+    if "temp_cats" not in st.session_state: st.session_state.temp_cats = []
 
     df_raw = load_data()
 
-    # 4. Sidebar - Project Search
+    # 3. Sidebar - Search Logic
     st.sidebar.header("🔍 Project Search")
-    search_mode = st.sidebar.radio(
-        "Search Mode", 
-        ["Single-Action Search", "Multi-Action Search"], 
-        key=f"mode_{st.session_state.reset_key}"
-    )
+    search_mode = st.sidebar.radio("Search Mode", ["Single-Action Search", "Multi-Action Search"], key=f"mode_{st.session_state.reset_key}")
 
     final_l1, final_l2, final_l3 = [], [], []
 
@@ -96,17 +81,14 @@ if check_password():
                 
                 if len(l3_opts) > 1:
                     c3 = st.sidebar.selectbox("3. Specific Focus (L3)", l3_opts, key=f"s3_{st.session_state.reset_key}")
-                    if c3 != "All":
-                        final_l3 = [c3]
+                    if c3 != "All": final_l3 = [c3]
     else:
+        # Multi-Action Search
         all_l1 = sorted([str(x) for x in df_raw['Level1'].dropna().unique()])
         final_l1 = st.sidebar.multiselect("Categories (L1)", all_l1, key=f"m1_{st.session_state.reset_key}")
-        
         all_l2 = sorted([str(x) for x in df_raw['Level2'].dropna().unique()])
         final_l2 = st.sidebar.multiselect("Sub-Categories (L2)", all_l2, key=f"m2_{st.session_state.reset_key}")
-        
-        l3_cols = ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
-        raw_l3_m = df_raw[l3_cols].values.ravel('K')
+        raw_l3_m = df_raw[['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']].values.ravel('K')
         all_l3 = sorted([str(x) for x in pd.unique(raw_l3_m) if pd.notna(x)])
         final_l3 = st.sidebar.multiselect("Specific Waivers (L3)", all_l3, key=f"m3_{st.session_state.reset_key}")
 
@@ -119,13 +101,14 @@ if check_password():
         st.session_state.search_active = False
         st.rerun()
 
-    # 5. Main Content Area
+    # 4. Main Gallery
     st.title("🏙️ TRD Digital Good Projects Library")
     q_search = st.text_input("📝 Quick Search (Name or ID)", key=f"q_{st.session_state.reset_key}")
 
     if st.session_state.search_active or q_search:
         df = df_raw.copy()
         
+        # --- LOGIC UPDATE: FILTERING ROWS FOR DISPLAY ---
         if search_mode == "Single-Action Search":
             if final_l1: df = df[df['Level1'].isin(final_l1)]
             if final_l2: df = df[df['Level2'].isin(final_l2)]
@@ -133,6 +116,7 @@ if check_password():
                 df = df[df['Level3-1'].isin(final_l3) | df['Level3-2'].isin(final_l3) | 
                         df['Level3-3'].isin(final_l3) | df['Level3-4'].isin(final_l3)]
         else:
+            # Multi-Action Logic
             if final_l1 or final_l2 or final_l3:
                 def check_project_match(group):
                     proj_l1 = set(group['Level1'].dropna())
@@ -143,19 +127,29 @@ if check_password():
                     m2 = all(i in proj_l2 for i in final_l2)
                     m3 = all(i in proj_l3 for i in final_l3)
                     return m1 and m2 and m3
+                
+                # Get IDs of projects that satisfy ALL constraints
                 m_ids = df_raw.groupby('Project ID').filter(check_project_match)['Project ID'].unique()
                 df = df_raw[df_raw['Project ID'].isin(m_ids)]
+                
+                # FIX: Strictly show only rows matching the 'Deepest' selection
+                if final_l3:
+                    df = df[df['Level3-1'].isin(final_l3) | df['Level3-2'].isin(final_l3) | 
+                            df['Level3-3'].isin(final_l3) | df['Level3-4'].isin(final_l3)]
+                elif final_l2:
+                    df = df[df['Level2'].isin(final_l2)]
+                elif final_l1:
+                    df = df[df['Level1'].isin(final_l1)]
 
         if q_search:
             df = df[df['Project'].str.contains(q_search, case=False, na=False) | 
                     df['Project ID'].astype(str).str.contains(q_search, case=False, na=False)]
 
-        st.subheader(f"Results: {len(df)} Entries")
+        st.subheader(f"Results: {len(df)} Entries Found")
         st.divider()
 
         if not df.empty:
             grid = st.columns(3)
-            # --- FIXED INDENTATION BLOCK ---
             for idx, (i, row) in enumerate(df.iterrows()):
                 with grid[idx % 3]:
                     with st.container(border=True):
@@ -172,7 +166,7 @@ if check_password():
     else:
         st.info("👈 Use the sidebar to explore the library.")
 
-    # 6. ADMIN REVIEW
+    # 5. ADMIN REVIEW
     st.divider()
     st.header("⏳ Recently Submitted Projects")
     official_ids = set(df_raw['Project ID'].astype(str).unique())
@@ -187,7 +181,7 @@ if check_password():
                 st.write(f"**Categories:** {', '.join(p['cats'])}")
                 st.write(f"**Link:** {p['link']} | **Date:** {p['date']}")
 
-    # 7. SUBMISSION FORM
+    # 6. SUBMISSION FORM
     st.divider()
     st.header("📩 Submit a 'Good Project'")
     with st.expander("Open Submission Form"):
