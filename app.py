@@ -54,18 +54,33 @@ def check_password():
             else: st.error("Invalid credentials.")
     return False
 
+# FIXED: AGGRESSIVE DATA CLEANING
 @st.cache_data
 def load_data():
     file_path = 'projects.csv'
     if not os.path.exists(file_path): return pd.DataFrame()
     try:
-        df = pd.read_csv(file_path, encoding='utf-8-sig')
+        try:
+            df = pd.read_csv(file_path, encoding='utf-8-sig')
+        except:
+            df = pd.read_csv(file_path, encoding='cp1252')
+        
+        # Strip spaces and remove invisible Excel characters (BOM)
         df.columns = [str(c).strip().replace('ï»¿', '') for c in df.columns]
+        
+        # Verify columns exist
+        required = ['Level1', 'Level2', 'Project', 'Project ID']
+        missing = [c for c in required if c not in df.columns]
+        if missing:
+            st.error(f"Critical Header Error. Missing: {missing}. Found: {list(df.columns)}")
+            st.stop()
+            
         return df[df['Project'].notna()]
-    except: return pd.DataFrame()
+    except Exception as e:
+        st.error(f"CSV Load Error: {e}")
+        return pd.DataFrame()
 
 if check_password():
-    # Initialize Session States
     if "reset_key" not in st.session_state: st.session_state.reset_key = 0
     if "search_clicked" not in st.session_state: st.session_state.search_clicked = False
     if "submissions" not in st.session_state: st.session_state.submissions = []
@@ -163,46 +178,4 @@ if check_password():
             f_name = st.text_input("Project Name")
             f_id = st.text_input("Project ID")
             f_link = st.text_input("ZAP Link")
-            f_year = st.selectbox("Cert Year", range(2000, 2027), index=26)
-            f_month = st.selectbox("Cert Month", ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"])
-            
-            # Form Categorization
-            f_l1 = st.selectbox("L1 Category", sorted(df_raw['Level1'].dropna().unique()))
-            f_l2 = st.selectbox("L2 Sub-Category", sorted(df_raw[df_raw['Level1'] == f_l1]['Level2'].dropna().unique()) if f_l1 else [])
-            
-            l3_cols = ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
-            l3_pool = pd.unique(df_raw[df_raw['Level2'] == f_l2][l3_cols].values.ravel('K'))
-            f_l3 = st.multiselect("L3 Focus Areas", [x for x in l3_pool if pd.notna(x)])
-
-            if st.form_submit_button("SUBMIT PACKET"):
-                if f_name and f_id:
-                    new_entry = {
-                        "id": len(st.session_state.submissions) + 1,
-                        "name": f_name,
-                        "proj_id": f_id,
-                        "meta": f"{f_month} {f_year}",
-                        "cat": f"{f_l1} > {f_l2} > {', '.join(f_l3) if f_l3 else 'None'}"
-                    }
-                    st.session_state.submissions.append(new_entry)
-                    st.success("Entry added to review queue.")
-                    st.rerun()
-                else:
-                    st.error("Name and ID are required.")
-
-    with col_review:
-        st.markdown("### REVIEW QUEUE")
-        if not st.session_state.submissions:
-            st.info("No pending entries.")
-        else:
-            for i, entry in enumerate(st.session_state.submissions):
-                c_data, c_del = st.columns([0.85, 0.15])
-                with c_data:
-                    st.markdown(f"**{i+1}- {entry['name']}** (ID: {entry['proj_id']})")
-                    st.markdown(f"<p class='mono-text'>{entry['meta']} | {entry['cat']}</p>", unsafe_allow_html=True)
-                with c_del:
-                    if st.button("🗑️", key=f"del_{entry['id']}"):
-                        st.session_state.submissions.pop(i)
-                        st.rerun()
-                st.markdown("---")
-else:
-    st.stop()
+            f_year = st.selectbox("Cert Year", range
