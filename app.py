@@ -54,7 +54,9 @@ def save_row(file_path, data_dict):
     with open(file_path, mode='a', newline='', encoding='utf-8-sig') as f:
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         if not file_exists: writer.writeheader()
-        writer.writerow(data_dict)
+        # Clean data_dict to only include FIELDNAMES
+        clean_dict = {k: data_dict.get(k, None) for k in FIELDNAMES}
+        writer.writerow(clean_dict)
 
 def load_csv_safe(file_path):
     if not os.path.exists(file_path): return pd.DataFrame()
@@ -194,11 +196,10 @@ if check_password():
             all_l3_sub = sorted([str(x) for x in pd.unique(df_raw[['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']].values.ravel('K')) if pd.notna(x)]) if not df_raw.empty else []
             n_l3_list = st.multiselect("L3 Focus Areas", all_l3_sub)
             
-            # THE SUBMIT BUTTON (CONTRAINED WITHIN THE FORM)
-            submit_btn = st.form_submit_button("SUBMIT THE PROJECT")
-            
-            if submit_btn:
+            if st.form_submit_button("SUBMIT THE PROJECT"):
                 if f_name and f_id and n_l1_list and n_l2_list:
+                    # Staging logic: Create a entry for each chain selected if multiple
+                    # For simple entry, we take the primary chain selected
                     new_row = {
                         'Level1': n_l1_list[0], 'Level2': n_l2_list[0], 
                         'Level3-1': n_l3_list[0] if len(n_l3_list)>0 else None,
@@ -226,14 +227,16 @@ if check_password():
                         st.markdown(f"**{i+1}- {item['Project']}**")
                         l3_vals = [str(item[c]) for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'] if pd.notna(item[c])]
                         chain_str = f"{item['Level1']} > {item['Level2']}" + (f" > {', '.join(l3_vals)}" if l3_vals else "")
-                        st.markdown(f"<p class='mono-text'>CATEGORIES: {chain_str}</p>", unsafe_allow_html=True)
+                        st.markdown(f"<p class='mono-text'>TAGGING AS: {chain_str}</p>", unsafe_allow_html=True)
                         if str(item['Approval Pack/NOC']).startswith("http"):
-                            st.markdown(f"<p class='mono-text'>ZAP: <a href='{item['Approval Pack/NOC']}' target='_blank'>Link</a></p>", unsafe_allow_html=True)
+                            st.markdown(f"<p class='mono-text'>ZAP: <a href='{item['Approval Pack/NOC']}' target='_blank'>Verify Link</a></p>", unsafe_allow_html=True)
                     with c_actions:
+                        # ✅ APPROVAL LOGIC: Moves data to projects.csv with EXACT column mapping
                         if st.button("✅", key=f"app_{item['Project ID']}_{i}"):
                             save_row('projects.csv', item)
                             delete_from_review(item['Project ID'])
                             st.cache_data.clear()
+                            st.success(f"Project {item['Project ID']} integrated into database.")
                             st.rerun()
                         if st.button("🗑️", key=f"del_{item['Project ID']}_{i}"):
                             delete_from_review(item['Project ID'])
