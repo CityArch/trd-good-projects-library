@@ -9,10 +9,9 @@ st.set_page_config(page_title="TRD Digital Good Projects Library", page_icon="�
 # --- HELPER: IMAGE TO BASE64 ---
 def get_base64_image(image_path):
     if os.path.exists(image_path):
+        import base64
         with open(image_path, "rb") as img_file:
-            import base64
-            with open(image_path, "rb") as img_file_b:
-                return base64.b64encode(img_file_b.read()).decode()
+            return base64.b64encode(img_file.read()).decode()
     return ""
 
 img_base64 = get_base64_image("image.jpg")
@@ -50,19 +49,32 @@ def save_row(file_path, data_dict):
 
 def load_review_queue():
     if not os.path.exists('review_queue.csv'): return []
-    df = pd.read_csv('review_queue.csv', encoding='utf-8-sig')
+    try:
+        # Try primary encoding
+        df = pd.read_csv('review_queue.csv', encoding='utf-8-sig')
+    except UnicodeDecodeError:
+        # Fallback for Windows-encoded Excel files
+        df = pd.read_csv('review_queue.csv', encoding='cp1252')
     return df.to_dict('records')
 
 def delete_from_review(proj_id):
     if not os.path.exists('review_queue.csv'): return
-    df = pd.read_csv('review_queue.csv', encoding='utf-8-sig')
+    try:
+        df = pd.read_csv('review_queue.csv', encoding='utf-8-sig')
+    except UnicodeDecodeError:
+        df = pd.read_csv('review_queue.csv', encoding='cp1252')
+    
     df = df[df['Project ID'].astype(str) != str(proj_id)]
     df.to_csv('review_queue.csv', index=False, encoding='utf-8-sig')
 
 @st.cache_data
 def load_main_data():
     if not os.path.exists('projects.csv'): return pd.DataFrame()
-    df = pd.read_csv('projects.csv', encoding='utf-8-sig')
+    try:
+        df = pd.read_csv('projects.csv', encoding='utf-8-sig')
+    except UnicodeDecodeError:
+        df = pd.read_csv('projects.csv', encoding='cp1252')
+        
     df.columns = [str(c).strip().replace('ï»¿', '') for c in df.columns]
     return df[df['Project'].notna()]
 
@@ -86,7 +98,7 @@ if check_password():
     
     st.markdown("<div class='hero-section'><h1>🏙️ GOOD PROJECTS LIBRARY</h1><p style='color:#38BDF8;'>NYC ZONING ANALYTICS TERMINAL</p></div>", unsafe_allow_html=True)
 
-    # 3. Sidebar Filters (Standard Multi-Action Search)
+    # 3. Sidebar Filters
     st.sidebar.markdown("### 🛠️ SYSTEM FILTERS")
     all_l1 = sorted(df_raw['Level1'].dropna().unique()) if not df_raw.empty else []
     f_l1 = st.sidebar.multiselect("L1", all_l1, key=f"m1_{st.session_state.reset_key}")
@@ -95,8 +107,12 @@ if check_password():
     f_l2 = st.sidebar.multiselect("L2", all_l2, key=f"m2_{st.session_state.reset_key}")
     
     l3_cols = ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
-    all_l3 = sorted(pd.unique(df_raw[l3_cols].values.ravel('K'))) if not df_raw.empty else []
-    f_l3 = st.sidebar.multiselect("L3", [x for x in all_l3 if pd.notna(x)], key=f"m3_{st.session_state.reset_key}")
+    all_l3 = []
+    if not df_raw.empty:
+        raw_vals = df_raw[l3_cols].values.ravel('K')
+        all_l3 = sorted([str(x) for x in pd.unique(raw_vals) if pd.notna(x)])
+    
+    f_l3 = st.sidebar.multiselect("L3", all_l3, key=f"m3_{st.session_state.reset_key}")
 
     if st.sidebar.button("🚀 EXECUTE SEARCH", use_container_width=True, type="primary"):
         st.session_state.search_clicked = True
@@ -105,12 +121,13 @@ if check_password():
         st.session_state.search_clicked = False
         st.rerun()
 
-    # 4. Results Section (Standard "AND" Logic)
+    # 4. Results Section
     if getattr(st.session_state, 'search_clicked', False):
         df = df_raw.copy()
         def check_match(group):
             pool = set()
-            for col in FIELDNAMES[:6]: pool.update(group[col].dropna().astype(str).unique())
+            for col in ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
+                pool.update(group[col].dropna().astype(str).unique())
             search_items = set(f_l1) | set(f_l2) | set(f_l3)
             return search_items.issubset(pool)
         
@@ -119,7 +136,19 @@ if check_password():
             df = df_raw[df_raw['Project ID'].isin(m_ids)]
         
         st.subheader(f"FOUND {len(df.groupby('Project ID'))} PROJECTS")
-        # (Results display logic here - grid view omitted for brevity, same as previous versions)
+        
+        if not df.empty:
+            grid = st.columns(3)
+            for idx, (proj_id, group) in enumerate(df.groupby('Project ID')):
+                first_row = group.iloc[0]
+                with grid[idx % 3]:
+                    with st.container(border=True):
+                        st.markdown(f"### {first_row['Project']}")
+                        st.markdown(f"<p class='mono-text'>ID: {proj_id} | {first_row['Cert Year']}</p>", unsafe_allow_html=True)
+                        for _, row in group.iterrows():
+                            l3_v = [str(row[c]) for c in l3_cols if pd.notna(row[c])]
+                            chain = f"{row['Level1']} > {row['Level2']}" + (f" > {', '.join(l3_v)}" if l3_v else "")
+                            st.markdown(f"<p class='mono-text'>• {chain}</p>", unsafe_allow_html=True)
 
     # 5. DATA CONTRIBUTION & ADMIN REVIEW
     st.divider()
@@ -131,9 +160,9 @@ if check_password():
             n_name = st.text_input("Project Name")
             n_id = st.text_input("Project ID")
             n_year = st.selectbox("Cert Year", range(2000, 2028), index=26)
-            n_l1 = st.selectbox("L1", all_l1)
-            n_l2 = st.selectbox("L2", sorted(df_raw[df_raw['Level1'] == n_l1]['Level2'].dropna().unique()))
-            n_l3 = st.multiselect("L3", [x for x in pd.unique(df_raw[df_raw['Level2'] == n_l2][l3_cols].values.ravel('K')) if pd.notna(x)])
+            n_l1 = st.selectbox("L1", all_l1) if all_l1 else st.text_input("L1 (Manual)")
+            n_l2 = st.selectbox("L2", sorted(df_raw[df_raw['Level1'] == n_l1]['Level2'].dropna().unique())) if not df_raw.empty else st.text_input("L2 (Manual)")
+            n_l3 = st.multiselect("L3", all_l3)
             
             if st.form_submit_button("SUBMIT THE PROJECT"):
                 if n_name and n_id:
@@ -146,7 +175,7 @@ if check_password():
                         'Project': n_name, 'Project ID': n_id, 'Cert Year': n_year, 'Approval Pack/NOC': ''
                     }
                     save_row('review_queue.csv', new_row)
-                    st.success("Project saved to Hard Drive for review.")
+                    st.success("Project saved to review queue.")
                     st.rerun()
 
     with col_admin:
@@ -162,18 +191,11 @@ if check_password():
                         st.markdown(f"**{i+1}- {item['Project']}**")
                         st.markdown(f"<p class='mono-text'>ID: {item['Project ID']} | {item['Level1']} > {item['Level2']}</p>", unsafe_allow_html=True)
                     with c_actions:
-                        # APPROVE BUTTON
                         if st.button("✅", key=f"app_{item['Project ID']}"):
-                            save_row('projects.csv', item) # Move to permanent
-                            delete_from_review(item['Project ID']) # Remove from temp
+                            save_row('projects.csv', item)
+                            delete_from_review(item['Project ID'])
                             st.cache_data.clear()
                             st.rerun()
-                        # DELETE BUTTON
                         if st.button("🗑️", key=f"del_{item['Project ID']}"):
                             delete_from_review(item['Project ID'])
                             st.rerun()
-
-### GitHub Push Orders
-# 1. git add .
-# 2. git commit -m "Implement two-stage review system with hard-drive persistence"
-# 3. git push origin main
