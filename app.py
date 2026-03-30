@@ -165,5 +165,70 @@ if check_password():
                     with st.container(border=True):
                         st.markdown(f"### {first_row['Project']}")
                         st.markdown(f"<p class='mono-text'>ID: {proj_id} | {first_row['Cert Year']}</p>", unsafe_allow_html=True)
+                        # ALWAYS SHOW CHAINS
                         for _, row in group.iterrows():
                             l3_v = [str(row[c]) for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'] if pd.notna(row[c])]
+                            chain = f"{row['Level1']} > {row['Level2']}" + (f" > {', '.join(l3_v)}" if l3_v else "")
+                            st.markdown(f"<p class='mono-text'>• {chain}</p>", unsafe_allow_html=True)
+                        zap = str(first_row['Approval Pack/NOC'])
+                        if zap.startswith("http"): st.link_button("OPEN ZAP", zap, use_container_width=True)
+
+    # 5. DATA CONTRIBUTION & ADMIN REVIEW (Always Visible)
+    st.divider()
+    col_entry, col_admin = st.columns([1, 1.2])
+
+    with col_entry:
+        st.markdown("<p class='small-header'>📩 New Submission</p>", unsafe_allow_html=True)
+        with st.form("sub_form", clear_on_submit=True):
+            n_name = st.text_input("Project Name")
+            n_id = st.text_input("Project ID")
+            n_year = st.selectbox("Cert Year", range(2000, 2028), index=26)
+            
+            l1_list = sorted(df_raw['Level1'].dropna().unique()) if not df_raw.empty else []
+            n_l1 = st.selectbox("L1", l1_list)
+            
+            l2_list = sorted(df_raw[df_raw['Level1'] == n_l1]['Level2'].dropna().unique()) if not df_raw.empty else []
+            n_l2 = st.selectbox("L2", l2_list)
+            
+            l3_list = sorted([str(x) for x in pd.unique(df_raw[df_raw['Level2'] == n_l2][['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']].values.ravel('K')) if pd.notna(x)]) if not df_raw.empty else []
+            n_l3 = st.multiselect("L3 Focus Areas", l3_list)
+            
+            if st.form_submit_button("SUBMIT THE PROJECT"):
+                if n_name and n_id:
+                    new_row = {
+                        'Level1': n_l1, 'Level2': n_l2, 
+                        'Level3-1': n_l3[0] if len(n_l3)>0 else None,
+                        'Level3-2': n_l3[1] if len(n_l3)>1 else None,
+                        'Level3-3': n_l3[2] if len(n_l3)>2 else None,
+                        'Level3-4': n_l3[3] if len(n_l3)>3 else None,
+                        'Project': n_name, 'Project ID': n_id, 'Cert Year': n_year, 'Approval Pack/NOC': ''
+                    }
+                    save_row('review_queue.csv', new_row)
+                    st.success("Saved to local review queue.")
+                    st.rerun()
+                else:
+                    st.error("Name and ID are required.")
+
+    with col_admin:
+        st.markdown("<p class='small-header'>🕵️ Admin Review Queue</p>", unsafe_allow_html=True)
+        queue_df = load_csv_safe('review_queue.csv')
+        if queue_df.empty:
+            st.info("Queue is empty.")
+        else:
+            for i, item in enumerate(queue_df.to_dict('records')):
+                with st.container(border=True):
+                    c_info, c_actions = st.columns([0.7, 0.3])
+                    with c_info:
+                        st.markdown(f"**{i+1}- {item['Project']}**")
+                        st.markdown(f"<p class='mono-text'>ID: {item['Project ID']} | {item['Level1']} > {item['Level2']}</p>", unsafe_allow_html=True)
+                    with c_actions:
+                        if st.button("✅", key=f"app_{item['Project ID']}_{i}"):
+                            save_row('projects.csv', item)
+                            delete_from_review(item['Project ID'])
+                            st.cache_data.clear()
+                            st.rerun()
+                        if st.button("🗑️", key=f"del_{item['Project ID']}_{i}"):
+                            delete_from_review(item['Project ID'])
+                            st.rerun()
+else:
+    st.stop()
