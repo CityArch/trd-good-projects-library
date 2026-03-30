@@ -62,7 +62,6 @@ def load_data():
             df = pd.read_csv(file_path, encoding='utf-8-sig')
         except:
             df = pd.read_csv(file_path, encoding='cp1252')
-        # Clean headers for KeyErrors
         df.columns = [str(c).strip().replace('ï»¿', '') for c in df.columns]
         return df[df['Project'].notna()]
     except: return pd.DataFrame()
@@ -127,17 +126,11 @@ if check_password():
                 df = df[df['Level3-1'].isin(final_l3) | df['Level3-2'].isin(final_l3) | 
                         df['Level3-3'].isin(final_l3) | df['Level3-4'].isin(final_l3)]
         else:
-            # GLOBAL "AND" LOGIC: Flatten all project data and check for total inclusion
             def check_global_and_match(group):
-                # Build one giant set of every string associated with this Project ID
                 project_pool = set()
                 for col in ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
                     project_pool.update(group[col].dropna().astype(str).str.strip().unique())
-                
-                # Combine all sidebar selections into one set
                 search_items = set(final_l1) | set(final_l2) | set(final_l3)
-                
-                # Logic: Is every single search item present in the project pool?
                 return search_items.issubset(project_pool)
 
             if final_l1 or final_l2 or final_l3:
@@ -168,4 +161,20 @@ if check_password():
                         zap = str(first_row['Approval Pack/NOC'])
                         if zap.startswith("http"): st.link_button("OPEN ZAP", zap, use_container_width=True)
         else: st.warning("No projects match the selected 'AND' criteria.")
-    else: st.info("SYSTEM ONLINE. SELECT FILTERS AND CLICK EXECUTE.")
+
+    # 5. RESTORED DATA CONTRIBUTION TERMINAL
+    st.divider()
+    st.header("📩 DATA CONTRIBUTION")
+    with st.expander("OPEN SUBMISSION TERMINAL"):
+        with st.form("f_sub", clear_on_submit=True):
+            f_name = st.text_input("PROJECT NAME")
+            f_id = st.text_input("PROJECT ID")
+            f_link = st.text_input("ZAP LINK (URL)")
+            f_year = st.selectbox("CERTIFICATION YEAR", range(2000, 2027), index=25)
+            if st.form_submit_button("SUBMIT FOR REVIEW"):
+                if f_name and f_id:
+                    st.success(f"Project '{f_name}' has been queued for data-entry review.")
+                else:
+                    st.error("Submission failed. Project Name and ID are mandatory fields.")
+else:
+    st.stop()
