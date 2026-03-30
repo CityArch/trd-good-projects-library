@@ -62,6 +62,7 @@ def load_data():
             df = pd.read_csv(file_path, encoding='utf-8-sig')
         except:
             df = pd.read_csv(file_path, encoding='cp1252')
+        # Clean headers for KeyErrors
         df.columns = [str(c).strip().replace('ï»¿', '') for c in df.columns]
         return df[df['Project'].notna()]
     except: return pd.DataFrame()
@@ -78,7 +79,6 @@ if check_password():
     search_mode = st.sidebar.radio("MODE", ["Single-Action Search", "Multi-Action Search"], key=f"m_mode_{st.session_state.reset_key}")
 
     final_l1, final_l2, final_l3 = [], [], []
-    specification = None
 
     if search_mode == "Single-Action Search":
         l1_opts = ["All"] + sorted([str(x) for x in df_raw['Level1'].dropna().unique()])
@@ -96,7 +96,6 @@ if check_password():
                     c3 = st.sidebar.selectbox("L3", l3_opts, key=f"s3_{st.session_state.reset_key}")
                     if c3 != "All": final_l3 = [c3]
     else:
-        specification = st.sidebar.selectbox("SPECIFICATION", ["Select Specification...", "L2 + L3", "Only L3", "Only L2"], key=f"spec_{st.session_state.reset_key}")
         all_l1 = sorted([str(x) for x in df_raw['Level1'].dropna().unique()])
         final_l1 = st.sidebar.multiselect("L1", all_l1, key=f"m1_{st.session_state.reset_key}")
         all_l2 = sorted([str(x) for x in df_raw['Level2'].dropna().unique()])
@@ -108,10 +107,7 @@ if check_password():
 
     st.sidebar.markdown("---")
     if st.sidebar.button("🚀 EXECUTE SEARCH", use_container_width=True, type="primary"):
-        if search_mode == "Multi-Action Search" and specification == "Select Specification...":
-            st.sidebar.error("Please select a Specification depth.")
-        else:
-            st.session_state.search_clicked = True
+        st.session_state.search_clicked = True
             
     if st.sidebar.button("🧹 RESET SYSTEM", use_container_width=True):
         st.session_state.reset_key += 1
@@ -131,40 +127,21 @@ if check_password():
                 df = df[df['Level3-1'].isin(final_l3) | df['Level3-2'].isin(final_l3) | 
                         df['Level3-3'].isin(final_l3) | df['Level3-4'].isin(final_l3)]
         else:
-            # RELIANCE ON NORMALIZED MATCHING (STOPS TYPO CRASHES)
-            def check_leaf_node_match(group):
-                project_l2_only = set() 
-                project_l3_full = set() 
-                project_l1_set = set(group['Level1'].dropna().astype(str).str.strip().str.lower())
+            # GLOBAL "AND" LOGIC: Flatten all project data and check for total inclusion
+            def check_global_and_match(group):
+                # Build one giant set of every string associated with this Project ID
+                project_pool = set()
+                for col in ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
+                    project_pool.update(group[col].dropna().astype(str).str.strip().unique())
                 
-                for _, row in group.iterrows():
-                    l2_val = str(row['Level2']).strip().lower()
-                    has_l3 = any(pd.notna(row[c]) for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'])
-                    if has_l3:
-                        for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
-                            if pd.notna(row[c]): project_l3_full.add(str(row[c]).strip().lower())
-                    else:
-                        project_l2_only.add(l2_val)
-
-                # Normalize user selections
-                sel_l1 = {x.strip().lower() for x in final_l1}
-                sel_l2 = {x.strip().lower() for x in final_l2}
-                sel_l3 = {x.strip().lower() for x in final_l3}
-
-                # Check AND logic
-                match_l1 = sel_l1.issubset(project_l1_set) if sel_l1 else True
-                match_l2 = sel_l2.issubset(project_l2_only) if sel_l2 else True
-                match_l3 = sel_l3.issubset(project_l3_full) if sel_l3 else True
-
-                if not (match_l1 and match_l2 and match_l3): return False
+                # Combine all sidebar selections into one set
+                search_items = set(final_l1) | set(final_l2) | set(final_l3)
                 
-                if specification == "Only L2": return len(project_l3_full) == 0
-                if specification == "Only L3": return len(project_l3_full) > 0
-                if specification == "L2 + L3": return len(project_l2_only) > 0 and len(project_l3_full) > 0
-                return True
+                # Logic: Is every single search item present in the project pool?
+                return search_items.issubset(project_pool)
 
             if final_l1 or final_l2 or final_l3:
-                matching_ids = df_raw.groupby('Project ID').filter(check_leaf_node_match)['Project ID'].unique()
+                matching_ids = df_raw.groupby('Project ID').filter(check_global_and_match)['Project ID'].unique()
                 df = df_raw[df_raw['Project ID'].isin(matching_ids)]
 
         if q_search:
@@ -190,4 +167,5 @@ if check_password():
                             st.markdown(f"<p class='mono-text' style='color:{hex_color};'>• {chain}</p>", unsafe_allow_html=True)
                         zap = str(first_row['Approval Pack/NOC'])
                         if zap.startswith("http"): st.link_button("OPEN ZAP", zap, use_container_width=True)
-        else: st.warning("Zero projects match. Check your Excel for typos in 'Yards' or 'Bulk_Waivers'.")
+        else: st.warning("No projects match the selected 'AND' criteria.")
+    else: st.info("SYSTEM ONLINE. SELECT FILTERS AND CLICK EXECUTE.")
