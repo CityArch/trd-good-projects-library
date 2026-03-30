@@ -12,7 +12,7 @@ def get_base64_image(image_path):
     if os.path.exists(image_path):
         try:
             with open(image_path, "rb") as img_file:
-                return base64.encode(img_file.read()).decode()
+                return base64.b64encode(img_file.read()).decode()
         except: return ""
     return ""
 
@@ -173,24 +173,70 @@ if check_password():
                         zap = str(first_row['Approval Pack/NOC'])
                         if zap.startswith("http"): st.link_button("OPEN ZAP", zap, use_container_width=True)
 
-    # 5. DATA CONTRIBUTION & ADMIN REVIEW
+    # 5. DATA CONTRIBUTION & ADMIN REVIEW (Always Visible)
     st.divider()
     col_entry, col_admin = st.columns([1, 1.2])
 
     with col_entry:
         st.markdown("<p class='small-header'>📩 New Submission</p>", unsafe_allow_html=True)
-        with st.form("sub_form", clear_on_submit=True):
-            n_name = st.text_input("Project Name")
-            n_id = st.text_input("Project ID")
-            n_link = st.text_input("ZAP Link")
-            n_year = st.selectbox("Cert Year", range(2000, 2028), index=26)
+        with st.form("contribution_form", clear_on_submit=True):
+            f_name = st.text_input("Project Name")
+            f_id = st.text_input("Project ID")
+            f_link = st.text_input("ZAP Link")
+            f_year = st.selectbox("Cert Year", range(2000, 2028), index=26)
             
-            # FUNCTIONALITY MATCH: MULTISELECT DROPDOWNS
             all_l1_sub = sorted(df_raw['Level1'].dropna().unique()) if not df_raw.empty else []
             n_l1_list = st.multiselect("L1 Categories", all_l1_sub)
             
             all_l2_sub = sorted(df_raw['Level2'].dropna().unique()) if not df_raw.empty else []
             n_l2_list = st.multiselect("L2 Sub-Categories", all_l2_sub)
             
-            l3_cols_sub = ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
-            all_l3_sub = sorted([str(x) for x in pd.unique(df_raw[l3_cols_sub].values.ravel('K')) if pd.notna(x)])
+            all_l3_sub = sorted([str(x) for x in pd.unique(df_raw[['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']].values.ravel('K')) if pd.notna(x)]) if not df_raw.empty else []
+            n_l3_list = st.multiselect("L3 Focus Areas", all_l3_sub)
+            
+            # THE SUBMIT BUTTON (CONTRAINED WITHIN THE FORM)
+            submit_btn = st.form_submit_button("SUBMIT THE PROJECT")
+            
+            if submit_btn:
+                if f_name and f_id and n_l1_list and n_l2_list:
+                    new_row = {
+                        'Level1': n_l1_list[0], 'Level2': n_l2_list[0], 
+                        'Level3-1': n_l3_list[0] if len(n_l3_list)>0 else None,
+                        'Level3-2': n_l3_list[1] if len(n_l3_list)>1 else None,
+                        'Level3-3': n_l3_list[2] if len(n_l3_list)>2 else None,
+                        'Level3-4': n_l3_list[3] if len(n_l3_list)>3 else None,
+                        'Project': f_name, 'Project ID': f_id, 'Cert Year': f_year, 'Approval Pack/NOC': f_link
+                    }
+                    save_row('review_queue.csv', new_row)
+                    st.success("Saved to local review queue.")
+                    st.rerun()
+                else:
+                    st.error("Name, ID, L1, and L2 are mandatory.")
+
+    with col_admin:
+        st.markdown("<p class='small-header'>🕵️ Admin Review Queue</p>", unsafe_allow_html=True)
+        queue_df = load_csv_safe('review_queue.csv')
+        if queue_df.empty:
+            st.info("Queue is empty.")
+        else:
+            for i, item in enumerate(queue_df.to_dict('records')):
+                with st.container(border=True):
+                    c_info, c_actions = st.columns([0.7, 0.3])
+                    with c_info:
+                        st.markdown(f"**{i+1}- {item['Project']}**")
+                        l3_vals = [str(item[c]) for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'] if pd.notna(item[c])]
+                        chain_str = f"{item['Level1']} > {item['Level2']}" + (f" > {', '.join(l3_vals)}" if l3_vals else "")
+                        st.markdown(f"<p class='mono-text'>CATEGORIES: {chain_str}</p>", unsafe_allow_html=True)
+                        if str(item['Approval Pack/NOC']).startswith("http"):
+                            st.markdown(f"<p class='mono-text'>ZAP: <a href='{item['Approval Pack/NOC']}' target='_blank'>Link</a></p>", unsafe_allow_html=True)
+                    with c_actions:
+                        if st.button("✅", key=f"app_{item['Project ID']}_{i}"):
+                            save_row('projects.csv', item)
+                            delete_from_review(item['Project ID'])
+                            st.cache_data.clear()
+                            st.rerun()
+                        if st.button("🗑️", key=f"del_{item['Project ID']}_{i}"):
+                            delete_from_review(item['Project ID'])
+                            st.rerun()
+else:
+    st.stop()
