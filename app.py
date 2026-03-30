@@ -135,5 +135,35 @@ if check_password():
         st.session_state.search_clicked = False
         st.rerun()
 
-    # 4. Results
-    q_search = st.text_input("📝 KEYWORD SEARCH", placeholder="Search project name or ID...", key=f"q_{
+    # 4. Results Section
+    q_search = st.text_input("📝 KEYWORD SEARCH", placeholder="Search project name or ID...", key=f"q_{st.session_state.reset_key}")
+
+    if getattr(st.session_state, 'search_clicked', False) or q_search:
+        df = df_raw.copy()
+        def check_match(group):
+            pool = set()
+            for col in ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
+                pool.update(group[col].dropna().astype(str).unique())
+            search_items = set(final_l1) | set(final_l2) | set(final_l3)
+            return search_items.issubset(pool)
+        
+        if final_l1 or final_l2 or final_l3:
+            m_ids = df_raw.groupby('Project ID').filter(check_match)['Project ID'].unique()
+            df = df_raw[df_raw['Project ID'].isin(m_ids)]
+        
+        if q_search:
+            df = df[df['Project'].str.contains(q_search, case=False, na=False) | df['Project ID'].astype(str).str.contains(q_search, case=False, na=False)]
+
+        grouped = df.groupby('Project ID')
+        st.subheader(f"SYSTEM FOUND {len(grouped)} PROJECTS")
+        
+        if not df.empty:
+            grid = st.columns(3)
+            for idx, (proj_id, group) in enumerate(grouped):
+                first_row = group.iloc[0]
+                with grid[idx % 3]:
+                    with st.container(border=True):
+                        st.markdown(f"### {first_row['Project']}")
+                        st.markdown(f"<p class='mono-text'>ID: {proj_id} | {first_row['Cert Year']}</p>", unsafe_allow_html=True)
+                        for _, row in group.iterrows():
+                            l3_v = [str(row[c]) for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'] if pd.notna(row[c])]
