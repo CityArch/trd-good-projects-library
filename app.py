@@ -3,7 +3,6 @@ import pandas as pd
 import os
 import csv
 import base64
-import re
 
 # 1. Page Configuration
 st.set_page_config(page_title="TRD Digital Good Projects Library", page_icon="🏙️", layout="wide")
@@ -29,38 +28,18 @@ st.markdown(f"""
         padding: 60px 20px; border-radius: 15px; border: 1px solid #334155;
         text-align: center; margin-bottom: 30px;
     }}
-    .small-header {{
-        font-size: 1.2rem !important;
-        font-weight: 600;
-        margin-bottom: 15px;
-        color: #38BDF8;
-        text-transform: uppercase;
-    }}
+    .small-header {{ font-size: 1.2rem !important; font-weight: 600; color: #38BDF8; text-transform: uppercase; }}
     section[data-testid="stSidebar"] {{ background-color: #1E293B !important; border-right: 1px solid #334155; }}
     .mono-text {{ font-family: 'Roboto Mono', monospace; font-size: 0.85rem; color: #94A3B8; }}
     div[data-testid="stVerticalBlock"] > div[style*="border"] {{
         background: rgba(30, 41, 59, 0.7) !important;
         backdrop-filter: blur(10px); border: 1px solid #334155 !important; border-radius: 12px !important;
     }}
-    .stButton>button {{ border-radius: 8px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }}
+    .stButton>button {{ border-radius: 8px; text-transform: uppercase; font-weight: 600; }}
     </style>
     """, unsafe_allow_html=True)
 
-# --- CSV FIELDNAMES ---
 FIELDNAMES = ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4', 'Project', 'Project ID', 'Cert Year', 'Approval Pack/NOC']
-
-# --- DATA INTEGRITY FILTER ---
-def is_valid_category(val):
-    """Filters out Project IDs, Years, and URLs from category dropdowns."""
-    s_val = str(val).strip()
-    if not s_val or s_val == 'nan': return False
-    # Remove Project IDs (e.g., 2022M0251)
-    if re.match(r'^\d{4}[A-Z]\d{4}$', s_val): return False
-    # Remove Years (e.g., 2026)
-    if s_val.isdigit() and len(s_val) == 4: return False
-    # Remove URLs
-    if s_val.startswith('http'): return False
-    return True
 
 # --- FILE OPERATIONS ---
 def save_row(file_path, data_dict):
@@ -68,7 +47,7 @@ def save_row(file_path, data_dict):
     with open(file_path, mode='a', newline='', encoding='utf-8-sig') as f:
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         if not file_exists: writer.writeheader()
-        clean_dict = {k: data_dict.get(k, None) for k in FIELDNAMES}
+        clean_dict = {k: str(data_dict.get(k, "")).strip() for k in FIELDNAMES}
         writer.writerow(clean_dict)
 
 def load_csv_safe(file_path):
@@ -84,10 +63,10 @@ def load_csv_safe(file_path):
 def delete_from_review(proj_id):
     df = load_csv_safe('review_queue.csv')
     if df.empty: return
-    df = df[df['Project ID'].astype(str) != str(proj_id)]
+    df = df[df['Project ID'].astype(str).str.strip() != str(proj_id).strip()]
     df.to_csv('review_queue.csv', index=False, encoding='utf-8-sig')
 
-@st.cache_data
+@st.cache_data(ttl=1) # Low TTL to ensure fresh data after approval
 def load_main_data():
     df = load_csv_safe('projects.csv')
     if df.empty: return pd.DataFrame()
@@ -120,27 +99,27 @@ if check_password():
     final_l1, final_l2, final_l3 = [], [], []
 
     if search_mode == "Single-Action Search":
-        l1_opts = ["All"] + sorted([x for x in df_raw['Level1'].unique() if is_valid_category(x)])
+        l1_opts = ["All"] + sorted([str(x).strip() for x in df_raw['Level1'].dropna().unique()]) if not df_raw.empty else ["All"]
         c1 = st.sidebar.selectbox("L1", l1_opts, key=f"s1_{st.session_state.reset_key}")
         if c1 != "All":
             final_l1 = [c1]
-            l2_opts = ["All"] + sorted([x for x in df_raw[df_raw['Level1'] == c1]['Level2'].unique() if is_valid_category(x)])
+            l2_opts = ["All"] + sorted([str(x).strip() for x in df_raw[df_raw['Level1'] == c1]['Level2'].dropna().unique()])
             c2 = st.sidebar.selectbox("L2", l2_opts, key=f"s2_{st.session_state.reset_key}")
             if c2 != "All":
                 final_l2 = [c2]
                 l3_cols = ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
                 raw_l3 = df_raw[df_raw['Level2'] == c2][l3_cols].values.ravel('K')
-                l3_opts = ["All"] + sorted([str(x) for x in pd.unique(raw_l3) if is_valid_category(x)])
+                l3_opts = ["All"] + sorted([str(x).strip() for x in pd.unique(raw_l3) if pd.notna(x)])
                 if len(l3_opts) > 1:
                     c3 = st.sidebar.selectbox("L3", l3_opts, key=f"s3_{st.session_state.reset_key}")
                     if c3 != "All": final_l3 = [c3]
     else:
-        all_l1 = sorted([x for x in df_raw['Level1'].unique() if is_valid_category(x)])
+        all_l1 = sorted([str(x).strip() for x in df_raw['Level1'].dropna().unique()]) if not df_raw.empty else []
         final_l1 = st.sidebar.multiselect("L1", all_l1, key=f"m1_{st.session_state.reset_key}")
-        all_l2 = sorted([x for x in df_raw['Level2'].unique() if is_valid_category(x)])
+        all_l2 = sorted([str(x).strip() for x in df_raw['Level2'].dropna().unique()]) if not df_raw.empty else []
         final_l2 = st.sidebar.multiselect("L2", all_l2, key=f"m2_{st.session_state.reset_key}")
         l3_cols_m = ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
-        all_l3 = sorted([str(x) for x in pd.unique(df_raw[l3_cols_m].values.ravel('K')) if is_valid_category(x)])
+        all_l3 = sorted([str(x).strip() for x in pd.unique(df_raw[l3_cols_m].values.ravel('K')) if pd.notna(x)]) if not df_raw.empty else []
         final_l3 = st.sidebar.multiselect("L3", all_l3, key=f"m3_{st.session_state.reset_key}")
 
     st.sidebar.markdown("---")
@@ -157,9 +136,11 @@ if check_password():
     if getattr(st.session_state, 'search_clicked', False) or q_search:
         df = df_raw.copy()
         def check_match(group):
+            # Normalize project pool for robust matching
             pool = set()
-            for col in FIELDNAMES[:6]: pool.update(group[col].dropna().astype(str).unique())
-            search_items = set(final_l1) | set(final_l2) | set(final_l3)
+            for col in FIELDNAMES[:6]:
+                pool.update(group[col].dropna().astype(str).str.strip().unique())
+            search_items = set([str(x).strip() for x in (final_l1 + final_l2 + final_l3)])
             return search_items.issubset(pool)
         
         if final_l1 or final_l2 or final_l3:
@@ -193,34 +174,31 @@ if check_password():
 
     with col_entry:
         st.markdown("<p class='small-header'>📩 New Submission</p>", unsafe_allow_html=True)
-        with st.form("contribution_form", clear_on_submit=True):
-            f_name = st.text_input("Project Name")
-            f_id = st.text_input("Project ID")
-            f_link = st.text_input("ZAP Link")
-            f_year = st.selectbox("Cert Year", range(2000, 2028), index=26)
+        with st.form("sub_form", clear_on_submit=True):
+            n_name = st.text_input("Project Name")
+            n_id = st.text_input("Project ID")
+            n_link = st.text_input("ZAP Link")
+            n_year = st.selectbox("Cert Year", range(2000, 2028), index=26)
             
-            # Form uses the same is_valid_category filter
-            all_l1_sub = sorted([x for x in df_raw['Level1'].unique() if is_valid_category(x)])
-            n_l1_list = st.multiselect("L1 Categories", all_l1_sub)
-            
-            all_l2_sub = sorted([x for x in df_raw['Level2'].unique() if is_valid_category(x)])
-            n_l2_list = st.multiselect("L2 Sub-Categories", all_l2_sub)
-            
-            all_l3_sub = sorted([str(x) for x in pd.unique(df_raw[['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']].values.ravel('K')) if is_valid_category(x)])
-            n_l3_list = st.multiselect("L3 Focus Areas", all_l3_sub)
+            all_l1_sub = sorted([str(x).strip() for x in df_raw['Level1'].dropna().unique()]) if not df_raw.empty else []
+            n_l1 = st.multiselect("L1 Categories", all_l1_sub)
+            all_l2_sub = sorted([str(x).strip() for x in df_raw['Level2'].dropna().unique()]) if not df_raw.empty else []
+            n_l2 = st.multiselect("L2 Sub-Categories", all_l2_sub)
+            all_l3_sub = sorted([str(x).strip() for x in pd.unique(df_raw[['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']].values.ravel('K')) if pd.notna(x)]) if not df_raw.empty else []
+            n_l3 = st.multiselect("L3 Focus Areas", all_l3_sub)
             
             if st.form_submit_button("SUBMIT THE PROJECT"):
-                if f_name and f_id and n_l1_list and n_l2_list:
+                if n_name and n_id and n_l1 and n_l2:
                     new_row = {
-                        'Level1': n_l1_list[0], 'Level2': n_l2_list[0], 
-                        'Level3-1': n_l3_list[0] if len(n_l3_list)>0 else None,
-                        'Level3-2': n_l3_list[1] if len(n_l3_list)>1 else None,
-                        'Level3-3': n_l3_list[2] if len(n_l3_list)>2 else None,
-                        'Level3-4': n_l3_list[3] if len(n_l3_list)>3 else None,
-                        'Project': f_name, 'Project ID': f_id, 'Cert Year': f_year, 'Approval Pack/NOC': f_link
+                        'Level1': n_l1[0], 'Level2': n_l2[0], 
+                        'Level3-1': n_l3[0] if len(n_l3)>0 else None,
+                        'Level3-2': n_l3[1] if len(n_l3)>1 else None,
+                        'Level3-3': n_l3[2] if len(n_l3)>2 else None,
+                        'Level3-4': n_l3[3] if len(n_l3)>3 else None,
+                        'Project': n_name, 'Project ID': n_id, 'Cert Year': n_year, 'Approval Pack/NOC': n_link
                     }
                     save_row('review_queue.csv', new_row)
-                    st.success("Saved to review queue.")
+                    st.success("Sent to review queue.")
                     st.rerun()
 
     with col_admin:
@@ -234,9 +212,9 @@ if check_password():
                     c_info, c_actions = st.columns([0.7, 0.3])
                     with c_info:
                         st.markdown(f"**{i+1}- {item['Project']}**")
-                        l3_vals = [str(item[c]) for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'] if pd.notna(item[c])]
-                        chain_str = f"{item['Level1']} > {item['Level2']}" + (f" > {', '.join(l3_vals)}" if l3_vals else "")
-                        st.markdown(f"<p class='mono-text'>TAGGING AS: {chain_str}</p>", unsafe_allow_html=True)
+                        l3_v = [str(item[c]) for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'] if pd.notna(item[c])]
+                        chain = f"{item['Level1']} > {item['Level2']}" + (f" > {', '.join(l3_v)}" if l3_v else "")
+                        st.markdown(f"<p class='mono-text'>TAG: {chain}</p>", unsafe_allow_html=True)
                     with c_actions:
                         if st.button("✅", key=f"app_{item['Project ID']}_{i}"):
                             save_row('projects.csv', item)
