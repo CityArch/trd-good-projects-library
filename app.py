@@ -78,7 +78,6 @@ def load_data():
         except:
             df = pd.read_csv(file_path, encoding='cp1252')
         
-        # Clean headers: remove spaces and Excel BOM
         df.columns = [str(c).strip().replace('ï»¿', '') for c in df.columns]
         
         required = ['Level1', 'Level2', 'Project', 'Project ID']
@@ -191,24 +190,31 @@ if check_password():
             f_name = st.text_input("Project Name")
             f_id = st.text_input("Project ID")
             f_link = st.text_input("ZAP Link")
-            f_year = st.selectbox("Cert Year", range(2000, 2027), index=25)
+            f_year = st.selectbox("Cert Year", range(2000, 2027), index=26)
             f_month = st.selectbox("Cert Month", ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"])
             
-            f_l1 = st.selectbox("L1 Category", sorted(df_raw['Level1'].dropna().unique()))
-            f_l2 = st.selectbox("L2 Sub-Category", sorted(df_raw[df_raw['Level1'] == f_l1]['Level2'].dropna().unique()) if f_l1 else [])
+            # MULTI-ACTION STYLE CATEGORIZATION IN FORM
+            all_f_l1 = sorted(df_raw['Level1'].dropna().unique())
+            f_l1 = st.multiselect("L1 Categories", all_f_l1)
             
-            l3_cols = ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
-            l3_pool = pd.unique(df_raw[df_raw['Level2'] == f_l2][l3_cols].values.ravel('K'))
-            f_l3 = st.multiselect("L3 Focus Areas", [x for x in l3_pool if pd.notna(x)])
+            all_f_l2 = sorted(df_raw['Level2'].dropna().unique())
+            f_l2 = st.multiselect("L2 Sub-Categories", all_f_l2)
+            
+            l3_cols_f = ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
+            raw_l3_f = df_raw[l3_cols_f].values.ravel('K')
+            all_f_l3 = sorted([str(x) for x in pd.unique(raw_l3_f) if pd.notna(x)])
+            f_l3 = st.multiselect("L3 Focus Areas", all_f_l3)
 
-            if st.form_submit_button("SUBMIT PACKET"):
+            if st.form_submit_button("SUBMIT THE PROJECT"):
                 if f_name and f_id:
                     new_entry = {
                         "id": len(st.session_state.submissions) + 1,
                         "name": f_name,
                         "proj_id": f_id,
                         "meta": f"{f_month} {f_year}",
-                        "cat": f"{f_l1} > {f_l2} > {', '.join(f_l3) if f_l3 else 'None'}"
+                        "l1": f_l1,
+                        "l2": f_l2,
+                        "l3": f_l3
                     }
                     st.session_state.submissions.append(new_entry)
                     st.success("Entry added to review queue.")
@@ -225,7 +231,12 @@ if check_password():
                 c_data, c_del = st.columns([0.85, 0.15])
                 with c_data:
                     st.markdown(f"**{i+1}- {entry['name']}** (ID: {entry['proj_id']})")
-                    st.markdown(f"<p class='mono-text'>{entry['meta']} | {entry['cat']}</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p class='mono-text'>{entry['meta']}</p>", unsafe_allow_html=True)
+                    # Display categories with clean formatting
+                    l1_s = f"L1: {', '.join(entry['l1'])}" if entry['l1'] else "L1: None"
+                    l2_s = f"L2: {', '.join(entry['l2'])}" if entry['l2'] else "L2: None"
+                    l3_s = f"L3: {', '.join(entry['l3'])}" if entry['l3'] else "L3: None"
+                    st.markdown(f"<p class='mono-text' style='font-size:0.75rem;'>{l1_s} | {l2_s} | {l3_s}</p>", unsafe_allow_html=True)
                 with c_del:
                     if st.button("🗑️", key=f"del_{entry['id']}"):
                         st.session_state.submissions.pop(i)
