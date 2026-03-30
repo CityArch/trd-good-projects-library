@@ -33,6 +33,7 @@ st.markdown(f"""
         backdrop-filter: blur(10px); border: 1px solid #334155 !important; border-radius: 12px !important;
     }}
     .stButton>button {{ border-radius: 8px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }}
+    .submission-card {{ background: #1E293B; padding: 15px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #334155; }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -58,19 +59,18 @@ def load_data():
     file_path = 'projects.csv'
     if not os.path.exists(file_path): return pd.DataFrame()
     try:
-        try:
-            df = pd.read_csv(file_path, encoding='utf-8-sig')
-        except:
-            df = pd.read_csv(file_path, encoding='cp1252')
+        df = pd.read_csv(file_path, encoding='utf-8-sig')
         df.columns = [str(c).strip().replace('ï»¿', '') for c in df.columns]
         return df[df['Project'].notna()]
     except: return pd.DataFrame()
 
 if check_password():
+    # Initialize Session States
     if "reset_key" not in st.session_state: st.session_state.reset_key = 0
     if "search_clicked" not in st.session_state: st.session_state.search_clicked = False
+    if "submissions" not in st.session_state: st.session_state.submissions = []
+    
     df_raw = load_data()
-
     st.markdown("<div class='hero-section'><h1>🏙️ GOOD PROJECTS LIBRARY</h1><p style='color:#38BDF8;'>NYC ZONING ANALYTICS TERMINAL</p></div>", unsafe_allow_html=True)
 
     # 3. Sidebar Filters
@@ -107,7 +107,6 @@ if check_password():
     st.sidebar.markdown("---")
     if st.sidebar.button("🚀 EXECUTE SEARCH", use_container_width=True, type="primary"):
         st.session_state.search_clicked = True
-            
     if st.sidebar.button("🧹 RESET SYSTEM", use_container_width=True):
         st.session_state.reset_key += 1
         st.session_state.search_clicked = False
@@ -118,31 +117,22 @@ if check_password():
 
     if st.session_state.search_clicked or q_search:
         df = df_raw.copy()
-        
-        if search_mode == "Single-Action Search":
-            if final_l1: df = df[df['Level1'].isin(final_l1)]
-            if final_l2: df = df[df['Level2'].isin(final_l2)]
-            if final_l3:
-                df = df[df['Level3-1'].isin(final_l3) | df['Level3-2'].isin(final_l3) | 
-                        df['Level3-3'].isin(final_l3) | df['Level3-4'].isin(final_l3)]
-        else:
-            def check_global_and_match(group):
-                project_pool = set()
-                for col in ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
-                    project_pool.update(group[col].dropna().astype(str).str.strip().unique())
-                search_items = set(final_l1) | set(final_l2) | set(final_l3)
-                return search_items.issubset(project_pool)
+        def check_global_and_match(group):
+            project_pool = set()
+            for col in ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
+                project_pool.update(group[col].dropna().astype(str).str.strip().unique())
+            search_items = set(final_l1) | set(final_l2) | set(final_l3)
+            return search_items.issubset(project_pool)
 
-            if final_l1 or final_l2 or final_l3:
-                matching_ids = df_raw.groupby('Project ID').filter(check_global_and_match)['Project ID'].unique()
-                df = df_raw[df_raw['Project ID'].isin(matching_ids)]
+        if final_l1 or final_l2 or final_l3:
+            m_ids = df_raw.groupby('Project ID').filter(check_global_and_match)['Project ID'].unique()
+            df = df_raw[df_raw['Project ID'].isin(m_ids)]
 
         if q_search:
             df = df[df['Project'].str.contains(q_search, case=False, na=False) | df['Project ID'].astype(str).str.contains(q_search, case=False, na=False)]
 
         grouped = df.groupby('Project ID')
         st.subheader(f"SYSTEM FOUND {len(grouped)} PROJECTS")
-        
         if not df.empty:
             grid = st.columns(3)
             for idx, (proj_id, group) in enumerate(grouped):
@@ -160,21 +150,59 @@ if check_password():
                             st.markdown(f"<p class='mono-text' style='color:{hex_color};'>• {chain}</p>", unsafe_allow_html=True)
                         zap = str(first_row['Approval Pack/NOC'])
                         if zap.startswith("http"): st.link_button("OPEN ZAP", zap, use_container_width=True)
-        else: st.warning("No projects match the selected 'AND' criteria.")
 
-    # 5. RESTORED DATA CONTRIBUTION TERMINAL
+    # 5. DATA CONTRIBUTION TERMINAL
     st.divider()
     st.header("📩 DATA CONTRIBUTION")
-    with st.expander("OPEN SUBMISSION TERMINAL"):
-        with st.form("f_sub", clear_on_submit=True):
-            f_name = st.text_input("PROJECT NAME")
-            f_id = st.text_input("PROJECT ID")
-            f_link = st.text_input("ZAP LINK (URL)")
-            f_year = st.selectbox("CERTIFICATION YEAR", range(2000, 2027), index=25)
-            if st.form_submit_button("SUBMIT FOR REVIEW"):
+    
+    col_form, col_review = st.columns([1, 1])
+
+    with col_form:
+        st.markdown("### PROJECT ENTRY")
+        with st.form("contribution_form", clear_on_submit=True):
+            f_name = st.text_input("Project Name")
+            f_id = st.text_input("Project ID")
+            f_link = st.text_input("ZAP Link")
+            f_year = st.selectbox("Cert Year", range(2000, 2027), index=26)
+            f_month = st.selectbox("Cert Month", ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"])
+            
+            # Form Categorization
+            f_l1 = st.selectbox("L1 Category", sorted(df_raw['Level1'].dropna().unique()))
+            f_l2 = st.selectbox("L2 Sub-Category", sorted(df_raw[df_raw['Level1'] == f_l1]['Level2'].dropna().unique()) if f_l1 else [])
+            
+            l3_cols = ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
+            l3_pool = pd.unique(df_raw[df_raw['Level2'] == f_l2][l3_cols].values.ravel('K'))
+            f_l3 = st.multiselect("L3 Focus Areas", [x for x in l3_pool if pd.notna(x)])
+
+            if st.form_submit_button("SUBMIT PACKET"):
                 if f_name and f_id:
-                    st.success(f"Project '{f_name}' has been queued for data-entry review.")
+                    new_entry = {
+                        "id": len(st.session_state.submissions) + 1,
+                        "name": f_name,
+                        "proj_id": f_id,
+                        "meta": f"{f_month} {f_year}",
+                        "cat": f"{f_l1} > {f_l2} > {', '.join(f_l3) if f_l3 else 'None'}"
+                    }
+                    st.session_state.submissions.append(new_entry)
+                    st.success("Entry added to review queue.")
+                    st.rerun()
                 else:
-                    st.error("Submission failed. Project Name and ID are mandatory fields.")
+                    st.error("Name and ID are required.")
+
+    with col_review:
+        st.markdown("### REVIEW QUEUE")
+        if not st.session_state.submissions:
+            st.info("No pending entries.")
+        else:
+            for i, entry in enumerate(st.session_state.submissions):
+                c_data, c_del = st.columns([0.85, 0.15])
+                with c_data:
+                    st.markdown(f"**{i+1}- {entry['name']}** (ID: {entry['proj_id']})")
+                    st.markdown(f"<p class='mono-text'>{entry['meta']} | {entry['cat']}</p>", unsafe_allow_html=True)
+                with c_del:
+                    if st.button("🗑️", key=f"del_{entry['id']}"):
+                        st.session_state.submissions.pop(i)
+                        st.rerun()
+                st.markdown("---")
 else:
     st.stop()
