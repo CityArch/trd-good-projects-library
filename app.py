@@ -10,8 +10,10 @@ st.set_page_config(page_title="TRD Digital Good Projects Library", page_icon="�
 # --- HELPER: IMAGE TO BASE64 ---
 def get_base64_image(image_path):
     if os.path.exists(image_path):
-        with open(image_path, "rb") as img_file:
-            return base64.b64encode(img_file.read()).decode()
+        try:
+            with open(image_path, "rb") as img_file:
+                return base64.b64encode(img_file.read()).decode()
+        except: return ""
     return ""
 
 img_base64 = get_base64_image("image.jpg")
@@ -26,7 +28,6 @@ st.markdown(f"""
         padding: 60px 20px; border-radius: 15px; border: 1px solid #334155;
         text-align: center; margin-bottom: 30px;
     }}
-    /* Reducing Header Font Sizes by 40% (Original ~2rem -> ~1.2rem) */
     .small-header {{
         font-size: 1.2rem !important;
         font-weight: 600;
@@ -59,8 +60,9 @@ def load_csv_safe(file_path):
     if not os.path.exists(file_path): return pd.DataFrame()
     try:
         return pd.read_csv(file_path, encoding='utf-8-sig')
-    except UnicodeDecodeError:
-        return pd.read_csv(file_path, encoding='cp1252')
+    except:
+        try: return pd.read_csv(file_path, encoding='cp1252')
+        except: return pd.DataFrame()
 
 def delete_from_review(proj_id):
     df = load_csv_safe('review_queue.csv')
@@ -95,7 +97,7 @@ if check_password():
     
     st.markdown("<div class='hero-section'><h1>🏙️ GOOD PROJECTS LIBRARY</h1><p style='color:#38BDF8;'>NYC ZONING ANALYTICS TERMINAL</p></div>", unsafe_allow_html=True)
 
-    # 3. Sidebar Filters (RESTORED Single vs Multi)
+    # 3. Sidebar Filters
     st.sidebar.markdown("### 🛠️ SYSTEM FILTERS")
     search_mode = st.sidebar.radio("MODE", ["Single-Action Search", "Multi-Action Search"], key=f"mode_{st.session_state.reset_key}")
 
@@ -114,3 +116,24 @@ if check_password():
                 raw_l3 = df_raw[df_raw['Level2'] == c2][l3_cols].values.ravel('K')
                 l3_opts = ["All"] + sorted([str(x) for x in pd.unique(raw_l3) if pd.notna(x)])
                 if len(l3_opts) > 1:
+                    c3 = st.sidebar.selectbox("L3", l3_opts, key=f"s3_{st.session_state.reset_key}")
+                    if c3 != "All": final_l3 = [c3]
+    else:
+        all_l1 = sorted(df_raw['Level1'].dropna().unique()) if not df_raw.empty else []
+        final_l1 = st.sidebar.multiselect("L1", all_l1, key=f"m1_{st.session_state.reset_key}")
+        all_l2 = sorted(df_raw['Level2'].dropna().unique()) if not df_raw.empty else []
+        final_l2 = st.sidebar.multiselect("L2", all_l2, key=f"m2_{st.session_state.reset_key}")
+        l3_cols_m = ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
+        all_l3 = sorted([str(x) for x in pd.unique(df_raw[l3_cols_m].values.ravel('K')) if pd.notna(x)]) if not df_raw.empty else []
+        final_l3 = st.sidebar.multiselect("L3", all_l3, key=f"m3_{st.session_state.reset_key}")
+
+    st.sidebar.markdown("---")
+    if st.sidebar.button("🚀 EXECUTE SEARCH", use_container_width=True, type="primary"):
+        st.session_state.search_clicked = True
+    if st.sidebar.button("🧹 RESET SYSTEM", use_container_width=True):
+        st.session_state.reset_key += 1
+        st.session_state.search_clicked = False
+        st.rerun()
+
+    # 4. Results
+    q_search = st.text_input("📝 KEYWORD SEARCH", placeholder="Search project name or ID...", key=f"q_{
