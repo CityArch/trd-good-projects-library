@@ -95,7 +95,7 @@ def check_password():
 
 # --- MAIN APP ---
 if check_password():
-    # We use a specific reset key ONLY for the Search sidebar/inputs
+    # Persistent key for Search System ONLY
     if "search_reset_key" not in st.session_state: st.session_state.search_reset_key = 0
     df_raw = load_main_data()
     
@@ -116,7 +116,8 @@ if check_password():
                 c2 = st.sidebar.selectbox("L2", l2_opts, key=f"s2_{st.session_state.search_reset_key}")
                 if c2 != "All":
                     final_l2 = [c2]
-                    raw_l3 = df_raw[df_raw['Level2'] == c2][['Level3-1','Level3-2','Level3-3','Level3-4']].values.ravel('K')
+                    l3_cols = ['Level3-1','Level3-2','Level3-3','Level3-4']
+                    raw_l3 = df_raw[df_raw['Level2'] == c2][l3_cols].values.ravel('K')
                     l3_opts = ["All"] + sorted([str(x).strip() for x in pd.unique(raw_l3) if pd.notna(x) and str(x).strip()])
                     if len(l3_opts) > 1:
                         c3 = st.sidebar.selectbox("L3", l3_opts, key=f"s3_{st.session_state.search_reset_key}")
@@ -160,8 +161,8 @@ if check_password():
                 with grid[idx % 3]:
                     with st.container(border=True):
                         st.markdown(f"### {first_row['Project']}")
-                        disp_date = first_row.get('Cert Date', first_row.get('Cert Year', 'N/A'))
-                        st.markdown(f"<p class='mono-text'>ID: {proj_id} | {disp_date}</p>", unsafe_allow_html=True)
+                        item_date = first_row.get('Cert Date', first_row.get('Cert Year', 'N/A'))
+                        st.markdown(f"<p class='mono-text'>ID: {proj_id} | {item_date}</p>", unsafe_allow_html=True)
                         for _, row in group.iterrows():
                             l3_v = [str(row[c]) for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if pd.notna(row[c]) and str(row[c]).strip()]
                             chain = f"{row['Level1']} > {row['Level2']}" + (f" > {', '.join(l3_v)}" if l3_v else "")
@@ -173,13 +174,14 @@ if check_password():
     st.divider()
     col_entry, col_admin = st.columns([1, 1.2])
 
+    # Persistent Storage Access
     queue_df = load_csv_safe('review_queue.csv')
     num_submissions = len(queue_df)
     num_approved = len(queue_df[queue_df['Status'] == 'Approved']) if not queue_df.empty else 0
 
     with col_entry:
         st.markdown("<p class='small-header'>📩 New Submission</p>", unsafe_allow_html=True)
-        st.markdown(f"<p class='mono-text'>Queue Load: {num_submissions}/20</p>", unsafe_allow_html=True)
+        st.markdown(f"<p class='mono-text'>Queue: {num_submissions}/20</p>", unsafe_allow_html=True)
         if num_submissions < 20:
             with st.form("sub_form", clear_on_submit=True):
                 n_name = st.text_input("Project Name")
@@ -208,17 +210,17 @@ if check_password():
                         save_row('review_queue.csv', new_row)
                         st.rerun()
                     else: st.error("Please fill Name, ID, L1, and L2.")
-        else:
-            st.warning("Submission queue full (20). Clear items to add more.")
 
     with col_admin:
         st.markdown("<p class='small-header'>🕵️ Admin Review Queue</p>", unsafe_allow_html=True)
         st.markdown(f"<p class='mono-text'>Approved Staging: {num_approved}/10</p>", unsafe_allow_html=True)
         if not queue_df.empty:
             for i, item in enumerate(queue_df.to_dict('records')):
+                # Scrub 'nan' for display
                 clean_item = {k: ("" if str(v).lower() == "nan" else str(v)).strip() for k, v in item.items()}
                 is_app = (clean_item.get('Status') == 'Approved')
-                item_date = item.get('Cert Date', item.get('Cert Year', "No Date"))
+                # Date compatibility
+                display_date = item.get('Cert Date', item.get('Cert Year', "No Date"))
                 
                 with st.container(border=True):
                     c_txt, c_btn = st.columns([0.7, 0.3])
@@ -227,7 +229,7 @@ if check_password():
                         st.markdown(f"**{i+1}- {circle}{clean_item['Project']}**")
                         l3_list = [clean_item[c] for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if clean_item[c]]
                         chain = f"{clean_item['Level1']} > {clean_item['Level2']}" + (f" > {', '.join(l3_list)}" if l3_list else "")
-                        st.markdown(f"<div class='mono-text'>ID: {clean_item['Project ID']} | DATE: {item_date}<br>CHAIN: {chain}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='mono-text'>ID: {clean_item['Project ID']} | DATE: {display_date}<br>CHAIN: {chain}</div>", unsafe_allow_html=True)
                         if clean_item.get('Approval Pack/NOC', '').startswith('http'):
                             st.link_button("ZAP", clean_item['Approval Pack/NOC'])
                     with c_btn:
@@ -235,6 +237,7 @@ if check_password():
                             if st.button("✅", key=f"ok_{i}"):
                                 update_queue_status(item['Project ID'], "Approved")
                                 st.rerun()
+                        # Trash Can: The ONLY way to remove items from the staging area
                         if st.button("🗑️", key=f"tr_{i}"):
                             delete_from_review(item['Project ID'])
                             st.rerun()
