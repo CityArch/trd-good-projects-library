@@ -83,7 +83,7 @@ def load_main_data():
 def check_password():
     if "password_correct" not in st.session_state: st.session_state.password_correct = False
     if st.session_state.password_correct: return True
-    st.markdown("<div class='hero-section'><h1>🔒 TRD Project Library</h1></div>", unsafe_allow_html=True)
+    st.markdown("<div class='hero-section'><h1>🔒 TRD Good Projects Library</h1></div>", unsafe_allow_html=True)
     with st.form("login"):
         pw = st.text_input("Access Token", type="password")
         if st.form_submit_button("UNLOCK"):
@@ -95,11 +95,11 @@ def check_password():
 
 # --- MAIN APP ---
 if check_password():
-    # Persistent key for Search System ONLY
     if "search_reset_key" not in st.session_state: st.session_state.search_reset_key = 0
     df_raw = load_main_data()
     
-    st.markdown("<div class='hero-section'><h1>🏙️ GOOD PROJECTS LIBRARY</h1><p style='color:#38BDF8;'>NYC ZONING ANALYTICS TERMINAL</p></div>", unsafe_allow_html=True)
+    # UPDATED TITLE HERE
+    st.markdown("<div class='hero-section'><h1>🏙️ TRD GOOD PROJECTS LIBRARY</h1><p style='color:#38BDF8;'>NYC ZONING ANALYTICS TERMINAL</p></div>", unsafe_allow_html=True)
 
     # 1. Sidebar Search Filters
     st.sidebar.markdown("### 🛠️ SYSTEM FILTERS")
@@ -125,7 +125,8 @@ if check_password():
         else:
             final_l1 = st.sidebar.multiselect("L1", sorted([str(x).strip() for x in df_raw['Level1'].dropna().unique() if str(x).strip()]), key=f"m1_{st.session_state.search_reset_key}")
             final_l2 = st.sidebar.multiselect("L2", sorted([str(x).strip() for x in df_raw['Level2'].dropna().unique() if str(x).strip()]), key=f"m2_{st.session_state.search_reset_key}")
-            raw_l3_all = df_raw[['Level3-1','Level3-2','Level3-3','Level3-4']].values.ravel('K')
+            l3_cols_m = ['Level3-1','Level3-2','Level3-3','Level3-4']
+            raw_l3_all = df_raw[l3_cols_m].values.ravel('K')
             final_l3 = st.sidebar.multiselect("L3", sorted([str(x).strip() for x in pd.unique(raw_l3_all) if pd.notna(x) and str(x).strip()]), key=f"m3_{st.session_state.search_reset_key}")
 
     st.sidebar.markdown("---")
@@ -174,7 +175,6 @@ if check_password():
     st.divider()
     col_entry, col_admin = st.columns([1, 1.2])
 
-    # Persistent Storage Access
     queue_df = load_csv_safe('review_queue.csv')
     num_submissions = len(queue_df)
     num_approved = len(queue_df[queue_df['Status'] == 'Approved']) if not queue_df.empty else 0
@@ -209,17 +209,14 @@ if check_password():
                         }
                         save_row('review_queue.csv', new_row)
                         st.rerun()
-                    else: st.error("Please fill Name, ID, L1, and L2.")
 
     with col_admin:
         st.markdown("<p class='small-header'>🕵️ Admin Review Queue</p>", unsafe_allow_html=True)
         st.markdown(f"<p class='mono-text'>Approved Staging: {num_approved}/10</p>", unsafe_allow_html=True)
         if not queue_df.empty:
             for i, item in enumerate(queue_df.to_dict('records')):
-                # Scrub 'nan' for display
                 clean_item = {k: ("" if str(v).lower() == "nan" else str(v)).strip() for k, v in item.items()}
                 is_app = (clean_item.get('Status') == 'Approved')
-                # Date compatibility
                 display_date = item.get('Cert Date', item.get('Cert Year', "No Date"))
                 
                 with st.container(border=True):
@@ -237,11 +234,8 @@ if check_password():
                             if st.button("✅", key=f"ok_{i}"):
                                 update_queue_status(item['Project ID'], "Approved")
                                 st.rerun()
-                        # Trash Can: The ONLY way to remove items from the staging area
                         if st.button("🗑️", key=f"tr_{i}"):
                             delete_from_review(item['Project ID'])
                             st.rerun()
-        else:
-            st.info("Queue is currently empty.")
 else:
     st.stop()
