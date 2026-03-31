@@ -133,7 +133,7 @@ if check_password():
         st.session_state.search_clicked = False
         st.rerun()
 
-    # Keyword Search Placeholder
+    # Keyword search bar
     q_search = st.text_input("📝 KEYWORD SEARCH", placeholder="Search project name or ID...", key=f"q_{st.session_state.reset_key}")
 
     # 5. DATA CONTRIBUTION & ADMIN REVIEW (STAGING WORKFLOW)
@@ -180,7 +180,8 @@ if check_password():
                         }
                         save_row('review_queue.csv', new_row)
                         st.rerun()
-                    else: st.error("Missing mandatory fields.")
+                    else:
+                        st.error("Missing mandatory fields.")
 
     with col_admin:
         st.markdown("<p class='small-header'>🕵️ Admin Review Queue</p>", unsafe_allow_html=True)
@@ -189,3 +190,21 @@ if check_password():
         if queue_df.empty:
             st.info("Queue is empty.")
         else:
+            for i, item in enumerate(queue_df.to_dict('records')):
+                is_app = (str(item.get('Status')).strip() == 'Approved')
+                with st.container(border=True):
+                    c_txt, c_btn = st.columns([0.7, 0.3])
+                    with c_txt:
+                        circle = "🟢 " if is_app else ""
+                        st.markdown(f"**{i+1}- {circle}{item['Project']}**")
+                        st.markdown(f"<p class='mono-text'>ID: {item['Project ID']} | {item['Level1']} > {item['Level2']}</p>", unsafe_allow_html=True)
+                    with c_btn:
+                        if not is_app and num_approved < 10:
+                            if st.button("✅", key=f"ok_{i}"):
+                                update_queue_status(item['Project ID'], "Approved")
+                                st.rerun()
+                        if st.button("🗑️", key=f"tr_{i}"):
+                            delete_from_review(item['Project ID'])
+                            st.rerun()
+else:
+    st.stop()
