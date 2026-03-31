@@ -99,10 +99,11 @@ if check_password():
     
     st.markdown("<div class='hero-section'><h1>🏙️ GOOD PROJECTS LIBRARY</h1><p style='color:#38BDF8;'>NYC ZONING ANALYTICS TERMINAL</p></div>", unsafe_allow_html=True)
 
-    # 3. Sidebar Filters
+    # Sidebar Search Filters
     st.sidebar.markdown("### 🛠️ SYSTEM FILTERS")
     search_mode = st.sidebar.radio("MODE", ["Single-Action Search", "Multi-Action Search"], key=f"mode_{st.session_state.reset_key}")
     
+    # Filter Logic
     final_l1, final_l2, final_l3 = [], [], []
     if not df_raw.empty:
         if search_mode == "Single-Action Search":
@@ -133,10 +134,10 @@ if check_password():
         st.session_state.search_clicked = False
         st.rerun()
 
-    # Keyword search bar
+    # Search bar
     q_search = st.text_input("📝 KEYWORD SEARCH", placeholder="Search project name or ID...", key=f"q_{st.session_state.reset_key}")
 
-    # 5. DATA CONTRIBUTION & ADMIN REVIEW (STAGING WORKFLOW)
+    # 5. DATA CONTRIBUTION & ADMIN REVIEW
     st.divider()
     col_entry, col_admin = st.columns([1, 1.2])
 
@@ -159,10 +160,8 @@ if check_password():
                 
                 l1_f = sorted([str(x).strip() for x in df_raw['Level1'].dropna().unique()]) if not df_raw.empty else []
                 n_l1 = st.multiselect("L1 Categories", l1_f)
-                
                 l2_f = sorted([str(x).strip() for x in df_raw['Level2'].dropna().unique()]) if not df_raw.empty else []
                 n_l2 = st.multiselect("L2 Sub-Categories", l2_f)
-                
                 l3_raw_pool = df_raw[['Level3-1','Level3-2','Level3-3','Level3-4']].values.ravel('K') if not df_raw.empty else []
                 l3_f = sorted([str(x).strip() for x in pd.unique(l3_raw_pool) if pd.notna(x)])
                 n_l3 = st.multiselect("L3 Focus Areas", l3_f)
@@ -180,8 +179,7 @@ if check_password():
                         }
                         save_row('review_queue.csv', new_row)
                         st.rerun()
-                    else:
-                        st.error("Missing mandatory fields.")
+                    else: st.error("Missing mandatory fields.")
 
     with col_admin:
         st.markdown("<p class='small-header'>🕵️ Admin Review Queue</p>", unsafe_allow_html=True)
@@ -193,17 +191,25 @@ if check_password():
             for i, item in enumerate(queue_df.to_dict('records')):
                 is_app = (str(item.get('Status')).strip() == 'Approved')
                 with st.container(border=True):
-                    c_txt, c_btn = st.columns([0.7, 0.3])
+                    c_txt, c_btn = st.columns([0.65, 0.35])
                     with c_txt:
                         circle = "🟢 " if is_app else ""
                         st.markdown(f"**{i+1}- {circle}{item['Project']}**")
                         st.markdown(f"<p class='mono-text'>ID: {item['Project ID']} | {item['Level1']} > {item['Level2']}</p>", unsafe_allow_html=True)
+                        
+                        # ALWAYS SHOW ZAP LINK
+                        zap_url = str(item.get('Approval Pack/NOC', '')).strip()
+                        if zap_url.startswith('http'):
+                            st.link_button("🔗 VERIFY ZAP LINK", zap_url, use_container_width=False)
+                        else:
+                            st.markdown("<p class='mono-text' style='color:#F87171;'>[No ZAP Link Provided]</p>", unsafe_allow_html=True)
+                            
                     with c_btn:
                         if not is_app and num_approved < 10:
-                            if st.button("✅", key=f"ok_{i}"):
+                            if st.button("✅ APPROVE", key=f"ok_{i}"):
                                 update_queue_status(item['Project ID'], "Approved")
                                 st.rerun()
-                        if st.button("🗑️", key=f"tr_{i}"):
+                        if st.button("🗑️ DELETE", key=f"tr_{i}"):
                             delete_from_review(item['Project ID'])
                             st.rerun()
 else:
