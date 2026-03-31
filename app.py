@@ -99,7 +99,7 @@ if check_password():
     
     st.markdown("<div class='hero-section'><h1>🏙️ GOOD PROJECTS LIBRARY</h1><p style='color:#38BDF8;'>NYC ZONING ANALYTICS TERMINAL</p></div>", unsafe_allow_html=True)
 
-    # Sidebar Search Filters
+    # 3. Sidebar Filters
     st.sidebar.markdown("### 🛠️ SYSTEM FILTERS")
     search_mode = st.sidebar.radio("MODE", ["Single-Action Search", "Multi-Action Search"], key=f"mode_{st.session_state.reset_key}")
     
@@ -129,13 +129,6 @@ if check_password():
     st.sidebar.markdown("---")
     if st.sidebar.button("🚀 EXECUTE SEARCH", use_container_width=True, type="primary"):
         st.session_state.search_clicked = True
-    if st.sidebar.button("🧹 RESET SYSTEM", use_container_width=True):
-        st.session_state.reset_key += 1
-        st.session_state.search_clicked = False
-        st.rerun()
-
-    # Search bar
-    q_search = st.text_input("📝 KEYWORD SEARCH", placeholder="Search project name or ID...", key=f"q_{st.session_state.reset_key}")
 
     # 5. DATA CONTRIBUTION & ADMIN REVIEW
     st.divider()
@@ -150,7 +143,7 @@ if check_password():
         st.markdown(f"<p class='mono-text'>Queue: {num_submissions}/20</p>", unsafe_allow_html=True)
         
         if num_submissions >= 20:
-            st.warning("Queue Full (20). Delete entries to submit more.")
+            st.warning("Queue Full (20).")
         else:
             with st.form("sub_form", clear_on_submit=True):
                 n_name = st.text_input("Project Name")
@@ -170,16 +163,15 @@ if check_password():
                     if n_name and n_id and n_l1 and n_l2:
                         new_row = {
                             'Level1': n_l1[0], 'Level2': n_l2[0], 
-                            'Level3-1': n_l3[0] if len(n_l3)>0 else None,
-                            'Level3-2': n_l3[1] if len(n_l3)>1 else None,
-                            'Level3-3': n_l3[2] if len(n_l3)>2 else None,
-                            'Level3-4': n_l3[3] if len(n_l3)>3 else None,
+                            'Level3-1': n_l3[0] if len(n_l3)>0 else "",
+                            'Level3-2': n_l3[1] if len(n_l3)>1 else "",
+                            'Level3-3': n_l3[2] if len(n_l3)>2 else "",
+                            'Level3-4': n_l3[3] if len(n_l3)>3 else "",
                             'Project': n_name, 'Project ID': n_id, 'Cert Year': n_year, 
                             'Approval Pack/NOC': n_link, 'Status': 'Pending'
                         }
                         save_row('review_queue.csv', new_row)
                         st.rerun()
-                    else: st.error("Missing mandatory fields.")
 
     with col_admin:
         st.markdown("<p class='small-header'>🕵️ Admin Review Queue</p>", unsafe_allow_html=True)
@@ -191,25 +183,27 @@ if check_password():
             for i, item in enumerate(queue_df.to_dict('records')):
                 is_app = (str(item.get('Status')).strip() == 'Approved')
                 with st.container(border=True):
-                    c_txt, c_btn = st.columns([0.65, 0.35])
+                    c_txt, c_btn = st.columns([0.7, 0.3])
                     with c_txt:
                         circle = "🟢 " if is_app else ""
                         st.markdown(f"**{i+1}- {circle}{item['Project']}**")
-                        st.markdown(f"<p class='mono-text'>ID: {item['Project ID']} | {item['Level1']} > {item['Level2']}</p>", unsafe_allow_html=True)
                         
-                        # ALWAYS SHOW ZAP LINK
+                        # Full Chain Display
+                        l3_vals = [str(item[c]) for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'] if str(item[c]).strip() != ""]
+                        chain_str = f"{item['Level1']} > {item['Level2']}" + (f" > {', '.join(l3_vals)}" if l3_vals else "")
+                        st.markdown(f"<p class='mono-text'>ID: {item['Project ID']} | {chain_str}</p>", unsafe_allow_html=True)
+                        
+                        # Simplified ZAP Link
                         zap_url = str(item.get('Approval Pack/NOC', '')).strip()
                         if zap_url.startswith('http'):
-                            st.link_button("🔗 VERIFY ZAP LINK", zap_url, use_container_width=False)
-                        else:
-                            st.markdown("<p class='mono-text' style='color:#F87171;'>[No ZAP Link Provided]</p>", unsafe_allow_html=True)
+                            st.link_button("ZAP", zap_url)
                             
                     with c_btn:
                         if not is_app and num_approved < 10:
-                            if st.button("✅ APPROVE", key=f"ok_{i}"):
+                            if st.button("✅", key=f"ok_{i}"):
                                 update_queue_status(item['Project ID'], "Approved")
                                 st.rerun()
-                        if st.button("🗑️ DELETE", key=f"tr_{i}"):
+                        if st.button("🗑️", key=f"tr_{i}"):
                             delete_from_review(item['Project ID'])
                             st.rerun()
 else:
