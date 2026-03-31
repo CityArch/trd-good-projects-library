@@ -49,7 +49,6 @@ def save_row(file_path, data_dict):
     with open(file_path, mode='a', newline='', encoding='utf-8-sig') as f:
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         if not file_exists: writer.writeheader()
-        # Ensure no 'nan' strings are saved
         clean_dict = {k: str(data_dict.get(k, "")).replace("nan", "").strip() for k in FIELDNAMES}
         writer.writerow(clean_dict)
 
@@ -61,7 +60,7 @@ def load_csv_safe(file_path):
         try: df = pd.read_csv(file_path, encoding='cp1252')
         except: return pd.DataFrame()
     df.columns = [str(c).strip().replace('ï»¿', '') for c in df.columns]
-    return df.fillna("") # Replace actual NaN values with empty strings globally
+    return df.fillna("")
 
 def update_queue_status(proj_id, status_val):
     df = load_csv_safe('review_queue.csv')
@@ -101,13 +100,6 @@ if check_password():
     
     st.markdown("<div class='hero-section'><h1>🏙️ GOOD PROJECTS LIBRARY</h1><p style='color:#38BDF8;'>NYC ZONING ANALYTICS TERMINAL</p></div>", unsafe_allow_html=True)
 
-    # 3. Sidebar Filters
-    st.sidebar.markdown("### 🛠️ SYSTEM FILTERS")
-    search_mode = st.sidebar.radio("MODE", ["Single-Action Search", "Multi-Action Search"], key=f"mode_{st.session_state.reset_key}")
-    
-    # Logic for search (L1-L2-L3)
-    # ... (Standard filtering logic as established in previous versions)
-
     # 5. DATA CONTRIBUTION & ADMIN REVIEW
     st.divider()
     col_entry, col_admin = st.columns([1, 1.2])
@@ -121,14 +113,12 @@ if check_password():
         st.markdown(f"<p class='mono-text'>Queue: {num_submissions}/20</p>", unsafe_allow_html=True)
         
         if num_submissions >= 20:
-            st.warning("Queue Full (20).")
+            st.warning("Queue Full.")
         else:
             with st.form("sub_form", clear_on_submit=True):
                 n_name = st.text_input("Project Name")
                 n_id = st.text_input("Project ID")
                 n_link = st.text_input("ZAP Link")
-                
-                # UPDATED: Cert Date calendar selector
                 n_date = st.date_input("Cert Date", value=date.today(), min_value=date(2000, 1, 1))
                 
                 l1_f = sorted([str(x).strip() for x in df_raw['Level1'].unique() if str(x).strip() != ""]) if not df_raw.empty else []
@@ -161,9 +151,12 @@ if check_password():
             st.info("Queue is empty.")
         else:
             for i, item in enumerate(queue_df.to_dict('records')):
-                # Clean dictionary of 'nan' strings for display
-                clean_item = {k: ("" if str(v).lower() == "nan" else str(v)) for k, v in item.items()}
-                is_app = (clean_item.get('Status').strip() == 'Approved')
+                # Fix for the KeyError: Support both old and new naming
+                proj_date = item.get('Cert Date', item.get('Cert Year', "No Date"))
+                
+                # Global NaN scrub for display
+                clean_item = {k: ("" if str(v).lower() == "nan" else str(v)).strip() for k, v in item.items()}
+                is_app = (clean_item.get('Status') == 'Approved')
                 
                 with st.container(border=True):
                     c_txt, c_btn = st.columns([0.7, 0.3])
@@ -171,10 +164,16 @@ if check_password():
                         circle = "🟢 " if is_app else ""
                         st.markdown(f"**{i+1}- {circle}{clean_item['Project']}**")
                         
-                        # Full Chain Display (Filtered to remove empty levels)
-                        l3_vals = [clean_item[c] for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'] if clean_item[c].strip() != ""]
-                        chain_str = f"{clean_item['Level1']} > {clean_item['Level2']}" + (f" > {', '.join(l3_vals)}" if l3_vals else "")
-                        st.markdown(f"<p class='mono-text'>ID: {clean_item['Project ID']} | DATE: {clean_item['Cert Date']}<br>CHAIN: {chain_str}</p>", unsafe_allow_html=True)
+                        l3_list = [clean_item[c] for c in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'] if clean_item[c]]
+                        chain = f"{clean_item['Level1']} > {clean_item['Level2']}" + (f" > {', '.join(l3_list)}" if l3_list else "")
+                        
+                        # Displaying ALL information from the form
+                        st.markdown(f"""
+                        <div class='mono-text'>
+                        <b>ID:</b> {clean_item['Project ID']} | <b>DATE:</b> {proj_date}<br>
+                        <b>CHAIN:</b> {chain}
+                        </div>
+                        """, unsafe_allow_html=True)
                         
                         if clean_item.get('Approval Pack/NOC', '').startswith('http'):
                             st.link_button("ZAP", clean_item['Approval Pack/NOC'])
@@ -182,10 +181,10 @@ if check_password():
                     with c_btn:
                         if not is_app and num_approved < 10:
                             if st.button("✅", key=f"ok_{i}"):
-                                update_queue_status(clean_item['Project ID'], "Approved")
+                                update_queue_status(item['Project ID'], "Approved")
                                 st.rerun()
                         if st.button("🗑️", key=f"tr_{i}"):
-                            delete_from_review(clean_item['Project ID'])
+                            delete_from_review(item['Project ID'])
                             st.rerun()
 else:
     st.stop()
