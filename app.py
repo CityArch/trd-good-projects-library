@@ -30,8 +30,8 @@ st.markdown(f"""
         text-align: center; margin-bottom: 30px;
     }}
     .small-header {{ font-size: 1.1rem !important; font-weight: 600; color: #38BDF8; text-transform: uppercase; margin-bottom: 10px; }}
-    .mono-text {{ font-family: 'Roboto Mono', monospace; font-size: 0.85rem; color: #94A3B8; }}
-    .remarks-box {{ background: rgba(56, 189, 248, 0.1); border-left: 3px solid #38BDF8; padding: 10px; border-radius: 4px; font-size: 0.85rem; color: #CBD5E1; }}
+    .mono-text {{ font-family: 'Roboto Mono', monospace; font-size: 0.85rem; color: #94A3B8; margin-bottom: 5px; }}
+    .remarks-box {{ background: rgba(56, 189, 248, 0.1); border-left: 3px solid #38BDF8; padding: 10px; border-radius: 4px; font-size: 0.85rem; color: #CBD5E1; margin-top: 10px; }}
     div[data-testid="stVerticalBlock"] > div[style*="border"] {{
         background: rgba(30, 41, 59, 0.7) !important;
         backdrop-filter: blur(10px); border: 1px solid #334155 !important; border-radius: 12px !important;
@@ -77,7 +77,7 @@ if "password_correct" not in st.session_state: st.session_state.password_correct
 if not st.session_state.password_correct:
     st.markdown("<div class='hero-section'><h1>🔒 TRD Good Projects Library</h1></div>", unsafe_allow_html=True)
     with st.form("login"):
-        pw = st.text_input("Passcode", type="password")  # Revized label
+        pw = st.text_input("Passcode", type="password")
         if st.form_submit_button("UNLOCK"):
             if pw == "1234567890":
                 st.session_state.password_correct = True
@@ -150,13 +150,27 @@ if getattr(st.session_state, 'search_clicked', False) or q_search:
             with st.container(border=True):
                 row1 = gp.iloc[0]
                 st.markdown(f"### {row1['Project']}")
-                st.markdown(f"<p class='mono-text'>ID: {p_id} | {row1.get('Cert Date', row1.get('Cert Year', ''))}</p>", unsafe_allow_html=True)
+                # Metadata Line
+                st.markdown(f"<p class='mono-text'><b>Project ID:</b> {p_id} | <b>Cert Date:</b> {row1.get('Cert Date', row1.get('Cert Year', ''))}</p>", unsafe_allow_html=True)
+                
+                # Categorized Actions Logic
+                cat_actions = []
                 for _, r in gp.iterrows():
-                    l3_list = [str(r[c]) for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if str(r[c]).strip()]
-                    st.markdown(f"<p class='mono-text'>• {r['Level1']} > {r['Level2']}" + (f" > {', '.join(l3_list)}" if l3_list else "") + "</p>", unsafe_allow_html=True)
+                    l3_list = [str(r[c]) for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if str(r[c]).strip() and str(r[c]).lower() != 'nan']
+                    chain = f"{r['Level1']} > {r['Level2']}" + (f" > {', '.join(l3_list)}" if l3_list else "")
+                    cat_actions.append(chain)
+                
+                st.markdown(f"<p class='mono-text'><b>Categorized Actions:</b><br>{'<br>'.join(['• ' + a for a in cat_actions])}</p>", unsafe_allow_html=True)
+                
+                # Remarks display
+                rem_val = str(row1.get('Remarks', '')).strip()
+                if rem_val and rem_val.lower() != 'nan':
+                    st.markdown(f"<div class='remarks-box'><b>Remarks:</b> {rem_val}</div>", unsafe_allow_html=True)
+                
+                # ZAP Button at the very end
                 zap_url = str(row1.get('Approval Pack/NOC', '')).strip()
                 if zap_url and zap_url.lower() != 'nan':
-                    st.link_button("OPEN ZAP", zap_url, use_container_width=True)
+                    st.link_button("ZAP", zap_url, use_container_width=True)
 
 # 3. Persistent Staging Area
 st.divider()
@@ -177,11 +191,9 @@ with c_entry:
             n_rem = st.text_area("Remarks")
             if st.form_submit_button("SUBMIT"):
                 if n_name and n_id and n_l1 and n_l2:
-                    # FIX: Auto-prepend https:// if missing to prevent relative URL redirection
                     clean_link = n_link.strip()
                     if clean_link and not (clean_link.startswith("http://") or clean_link.startswith("https://")):
                         clean_link = "https://" + clean_link
-                    
                     new_row = {'Level1': n_l1[0], 'Level2': n_l2[0], 'Project': n_name, 'Project ID': n_id, 'Cert Date': n_date.strftime("%m-%d-%Y"), 'Approval Pack/NOC': clean_link, 'Remarks': n_rem, 'Status': 'Pending'}
                     for i in range(4): new_row[f'Level3-{i+1}'] = n_l3[i] if len(n_l3) > i else ""
                     save_row('review_queue.csv', new_row); st.rerun()
@@ -199,14 +211,14 @@ with c_admin:
                 st.markdown(f"**{i+1}- {'🟢 ' if is_app else ''}{clean['Project']}**")
             
             l3s = [clean[c] for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if clean[c]]
-            st.markdown(f"<div class='mono-text'>ID: {clean['Project ID']} | DATE: {item.get('Cert Date', item.get('Cert Year', ''))}<br><b>CATEGORIZED ACTIONS:</b> {clean['Level1']} > {clean['Level2']}" + (f" > {', '.join(l3s)}" if l3s else "") + "</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono-text'><b>Project ID:</b> {clean['Project ID']} | <b>DATE:</b> {item.get('Cert Date', item.get('Cert Year', ''))}<br><b>Categorized Actions:</b> {clean['Level1']} > {clean['Level2']}" + (f" > {', '.join(l3s)}" if l3s else "") + "</div>", unsafe_allow_html=True)
             
             z_col, r_col = st.columns([0.2, 0.8])
             with z_col:
                 z_link = clean.get('Approval Pack/NOC', '').strip()
                 if z_link: st.link_button("ZAP", z_link, use_container_width=True)
             with r_col:
-                if clean['Remarks']: st.markdown(f"<div class='remarks-box'><b>REMARKS:</b> {clean['Remarks']}</div>", unsafe_allow_html=True)
+                if clean['Remarks']: st.markdown(f"<div class='remarks-box'><b>Remarks:</b> {clean['Remarks']}</div>", unsafe_allow_html=True)
             
             with a_col:
                 b1, b2 = st.columns(2)
