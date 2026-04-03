@@ -56,4 +56,34 @@ def save_row(file_path, data_dict):
 def load_csv_safe(file_path):
     if not os.path.exists(file_path): return pd.DataFrame()
     try:
-        df = pd.read_csv(file_
+        df = pd.read_csv(file_path, encoding='utf-8-sig')
+    except:
+        try:
+            df = pd.read_csv(file_path, encoding='cp1252')
+        except:
+            return pd.DataFrame()
+    df.columns = [str(c).strip().replace('ï»¿', '') for c in df.columns]
+    return df.fillna("")
+
+def update_queue_status(proj_id, status_val):
+    df = load_csv_safe('review_queue.csv')
+    if df.empty: return
+    df.loc[df['Project ID'].astype(str).str.strip() == str(proj_id).strip(), 'Status'] = status_val
+    df.to_csv('review_queue.csv', index=False, encoding='utf-8-sig')
+
+def delete_from_review(proj_id):
+    df = load_csv_safe('review_queue.csv')
+    if df.empty: return
+    df = df[df['Project ID'].astype(str).str.strip() != str(proj_id).strip()]
+    df.to_csv('review_queue.csv', index=False, encoding='utf-8-sig')
+
+@st.cache_data
+def load_main_data():
+    df = load_csv_safe('projects.csv')
+    if df.empty: return pd.DataFrame()
+    return df[df['Project'] != ""]
+
+def check_password():
+    if "password_correct" not in st.session_state: st.session_state.password_correct = False
+    if st.session_state.password_correct: return True
+    st.markdown("<div class
