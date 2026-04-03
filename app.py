@@ -87,4 +87,18 @@ def check_password():
     st.markdown("<div class='hero-section'><h1>🔒 TRD Good Projects Library</h1></div>", unsafe_allow_html=True)
     with st.form("login"):
         pw = st.text_input("Access Token", type="password")
-        if st.form_submit_button
+        if st.form_submit_button("UNLOCK"):
+            if pw == "1234567890":
+                st.session_state.password_correct = True
+                st.rerun()
+            else: st.error("Invalid credentials.")
+    return False
+
+# --- MAIN APP ---
+if check_password():
+    if "search_reset_key" not in st.session_state: st.session_state.search_reset_key = 0
+    df_raw = load_main_data()
+    
+    st.markdown("<div class='hero-section'><h1>🏙️ TRD GOOD PROJECTS LIBRARY</h1><p style='color:#38BDF8;'>NYC ZONING ANALYTICS TERMINAL</p></div>", unsafe_allow_html=True)
+
+    # 1. Sidebar Search Filters
