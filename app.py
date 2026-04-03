@@ -154,7 +154,9 @@ if getattr(st.session_state, 'search_clicked', False) or q_search:
                 for _, r in gp.iterrows():
                     l3_list = [str(r[c]) for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if str(r[c]).strip()]
                     st.markdown(f"<p class='mono-text'>• {r['Level1']} > {r['Level2']}" + (f" > {', '.join(l3_list)}" if l3_list else "") + "</p>", unsafe_allow_html=True)
-                if str(row1['Approval Pack/NOC']).startswith("http"): st.link_button("OPEN ZAP", row1['Approval Pack/NOC'], use_container_width=True)
+                zap_url = str(row1.get('Approval Pack/NOC', '')).strip()
+                if zap_url and zap_url.lower() != 'nan':
+                    st.link_button("OPEN ZAP", zap_url, use_container_width=True)
 
 # 3. Persistent Staging Area
 st.divider()
@@ -168,9 +170,9 @@ with c_entry:
         with st.form("sub_form", clear_on_submit=True):
             n_name, n_id, n_link = st.text_input("Project Name"), st.text_input("Project ID"), st.text_input("ZAP Link")
             n_date = st.date_input("Cert Date", min_value=date(2000, 1, 1))
-            n_l1 = st.multiselect("L1 Categories", sorted(df_raw['Level1'].unique()))
-            n_l2 = st.multiselect("L2 Sub-Categories", sorted(df_raw['Level2'].unique()))
-            l3_pool = pd.unique(df_raw[['Level3-1','Level3-2','Level3-3','Level3-4']].values.ravel('K'))
+            n_l1 = st.multiselect("L1 Categories", sorted(df_raw['Level1'].unique()) if not df_raw.empty else [])
+            n_l2 = st.multiselect("L2 Sub-Categories", sorted(df_raw['Level2'].unique()) if not df_raw.empty else [])
+            l3_pool = pd.unique(df_raw[['Level3-1','Level3-2','Level3-3','Level3-4']].values.ravel('K')) if not df_raw.empty else []
             n_l3 = st.multiselect("L3 Focus Areas", sorted([str(x).strip() for x in l3_pool if str(x).strip()]))
             n_rem = st.text_area("Remarks")
             if st.form_submit_button("SUBMIT"):
@@ -190,10 +192,17 @@ with c_admin:
             c1, c2 = st.columns([0.8, 0.2])
             with c1:
                 st.markdown(f"**{i+1}- {'🟢 ' if is_app else ''}{clean['Project']}**")
+                
+                # ZAP LINK: FORCED DISPLAY (IF NOT EMPTY)
+                z_link = clean.get('Approval Pack/NOC', '').strip()
+                if z_link:
+                    st.link_button("🌐 OPEN ZAP LINK", z_link)
+                
                 l3s = [clean[c] for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if clean[c]]
                 st.markdown(f"<div class='mono-text'>ID: {clean['Project ID']} | DATE: {item.get('Cert Date', item.get('Cert Year', ''))}<br><b>CATEGORIZED ACTIONS:</b> {clean['Level1']} > {clean['Level2']}" + (f" > {', '.join(l3s)}" if l3s else "") + "</div>", unsafe_allow_html=True)
-                if clean['Approval Pack/NOC'].startswith('http'): st.link_button("ZAP", clean['Approval Pack/NOC'])
-                if clean['Remarks']: st.markdown(f"<div class='remarks-box'><b>REMARKS:</b> {clean['Remarks']}</div>", unsafe_allow_html=True)
+                
+                if clean['Remarks']:
+                    st.markdown(f"<div class='remarks-box'><b>REMARKS:</b> {clean['Remarks']}</div>", unsafe_allow_html=True)
             with c2:
                 if not is_app and num_app < 10:
                     if st.button("✅", key=f"ok{i}"): update_queue_status(clean['Project ID'], "Approved"); st.rerun()
