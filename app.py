@@ -31,7 +31,7 @@ st.markdown(f"""
     }}
     .small-header {{ font-size: 1.1rem !important; font-weight: 600; color: #38BDF8; text-transform: uppercase; margin-bottom: 10px; }}
     .mono-text {{ font-family: 'Roboto Mono', monospace; font-size: 0.85rem; color: #94A3B8; }}
-    .remarks-box {{ background: rgba(56, 189, 248, 0.1); border-left: 3px solid #38BDF8; padding: 10px; margin-top: 10px; border-radius: 4px; font-size: 0.85rem; color: #CBD5E1; }}
+    .remarks-box {{ background: rgba(56, 189, 248, 0.1); border-left: 3px solid #38BDF8; padding: 10px; border-radius: 4px; font-size: 0.85rem; color: #CBD5E1; flex-grow: 1; }}
     div[data-testid="stVerticalBlock"] > div[style*="border"] {{
         background: rgba(30, 41, 59, 0.7) !important;
         backdrop-filter: blur(10px); border: 1px solid #334155 !important; border-radius: 12px !important;
@@ -109,8 +109,8 @@ if not df_raw.empty:
             c2 = st.sidebar.selectbox("L2", l2_opts, key=f"s2_{st.session_state.search_reset_key}")
             if c2 != "All":
                 final_l2 = [c2]
-                l3_all_vals = pd.unique(df_raw[df_raw['Level2'] == c2][['Level3-1','Level3-2','Level3-3','Level3-4']].values.ravel('K'))
-                l3_opts = ["All"] + sorted([str(x).strip() for x in l3_all_vals if str(x).strip()])
+                l3_vals = pd.unique(df_raw[df_raw['Level2'] == c2][['Level3-1','Level3-2','Level3-3','Level3-4']].values.ravel('K'))
+                l3_opts = ["All"] + sorted([str(x).strip() for x in l3_vals if str(x).strip()])
                 if len(l3_opts) > 1:
                     c3 = st.sidebar.selectbox("L3", l3_opts, key=f"s3_{st.session_state.search_reset_key}")
                     if c3 != "All": final_l3 = [c3]
@@ -189,21 +189,27 @@ with c_admin:
         clean = {k: ("" if str(v).lower() == "nan" else str(v)).strip() for k, v in item.items()}
         is_app = (clean['Status'] == 'Approved')
         with st.container(border=True):
-            c1, c2 = st.columns([0.8, 0.2])
-            with c1:
+            header_col, action_col = st.columns([0.8, 0.2])
+            with header_col:
                 st.markdown(f"**{i+1}- {'🟢 ' if is_app else ''}{clean['Project']}**")
-                
-                # ZAP LINK: FORCED DISPLAY (IF NOT EMPTY)
+            
+            # CATEGORIZED ACTIONS
+            l3s = [clean[c] for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if clean[c]]
+            st.markdown(f"<div class='mono-text'>ID: {clean['Project ID']} | DATE: {item.get('Cert Date', item.get('Cert Year', ''))}<br><b>CATEGORIZED ACTIONS:</b> {clean['Level1']} > {clean['Level2']}" + (f" > {', '.join(l3s)}" if l3s else "") + "</div>", unsafe_allow_html=True)
+            
+            # NEW ROW FOR ZAP + REMARKS
+            zap_rem_col1, zap_rem_col2 = st.columns([0.2, 0.8])
+            with zap_rem_col1:
                 z_link = clean.get('Approval Pack/NOC', '').strip()
                 if z_link:
-                    st.link_button("🌐 OPEN ZAP LINK", z_link)
-                
-                l3s = [clean[c] for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if clean[c]]
-                st.markdown(f"<div class='mono-text'>ID: {clean['Project ID']} | DATE: {item.get('Cert Date', item.get('Cert Year', ''))}<br><b>CATEGORIZED ACTIONS:</b> {clean['Level1']} > {clean['Level2']}" + (f" > {', '.join(l3s)}" if l3s else "") + "</div>", unsafe_allow_html=True)
-                
+                    st.link_button("ZAP", z_link, use_container_width=True)
+            with zap_rem_col2:
                 if clean['Remarks']:
                     st.markdown(f"<div class='remarks-box'><b>REMARKS:</b> {clean['Remarks']}</div>", unsafe_allow_html=True)
-            with c2:
+            
+            # ACTION BUTTONS IN TOP RIGHT
+            with action_col:
+                btn_row1, btn_row2 = st.columns(2)
                 if not is_app and num_app < 10:
-                    if st.button("✅", key=f"ok{i}"): update_queue_status(clean['Project ID'], "Approved"); st.rerun()
-                if st.button("🗑️", key=f"tr{i}"): delete_from_review(clean['Project ID']); st.rerun()
+                    if btn_row1.button("✅", key=f"ok{i}"): update_queue_status(clean['Project ID'], "Approved"); st.rerun()
+                if btn_row2.button("🗑️", key=f"tr{i}"): delete_from_review(clean['Project ID']); st.rerun()
