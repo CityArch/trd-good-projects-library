@@ -43,4 +43,24 @@ st.markdown(f"""
 FIELDNAMES = ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4', 'Project', 'Project ID', 'Cert Date', 'Approval Pack/NOC', 'Remarks', 'Status']
 
 def load_csv_safe(file_path):
-    if not os.path.exists(
+    if not os.path.exists(file_path): return pd.DataFrame()
+    try:
+        df = pd.read_csv(file_path, encoding='utf-8-sig')
+    except:
+        try: df = pd.read_csv(file_path, encoding='cp1252')
+        except: return pd.DataFrame()
+    df.columns = [str(c).strip().replace('ï»¿', '') for c in df.columns]
+    return df.fillna("")
+
+def save_row(file_path, data_dict):
+    file_exists = os.path.isfile(file_path)
+    with open(file_path, mode='a', newline='', encoding='utf-8-sig') as f:
+        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+        if not file_exists: writer.writeheader()
+        clean_dict = {k: str(data_dict.get(k, "")).replace("nan", "").strip() for k in FIELDNAMES}
+        writer.writerow(clean_dict)
+
+def update_queue_status(proj_id, status_val):
+    df = load_csv_safe('review_queue.csv')
+    if df.empty: return
+    df.loc[df['Project ID'].astype(str).str.strip() == str(proj_id).strip(), 'Status'] =
