@@ -88,4 +88,78 @@ def check_password():
     with st.form("login"):
         pw = st.text_input("Access Token", type="password")
         if st.form_submit_button("UNLOCK"):
-            if pw == "1234567
+            if pw == "1234567890":
+                st.session_state.password_correct = True
+                st.rerun()
+            else: st.error("Invalid credentials.")
+    return False
+
+# --- MAIN APP ---
+if check_password():
+    if "search_reset_key" not in st.session_state: st.session_state.search_reset_key = 0
+    df_raw = load_main_data()
+    
+    st.markdown("<div class='hero-section'><h1>🏙️ TRD GOOD PROJECTS LIBRARY</h1><p style='color:#38BDF8;'>NYC ZONING ANALYTICS TERMINAL</p></div>", unsafe_allow_html=True)
+
+    # 1. Sidebar Search Filters
+    st.sidebar.markdown("### 🛠️ SYSTEM FILTERS")
+    search_mode = st.sidebar.radio("MODE", ["Single-Action Search", "Multi-Action Search"], key=f"mode_{st.session_state.search_reset_key}")
+    
+    final_l1, final_l2, final_l3 = [], [], []
+    unique_strict = False
+
+    if not df_raw.empty:
+        if search_mode == "Single-Action Search":
+            s_type = st.sidebar.segmented_control("SCOPE", ["General", "Unique"], default="General", key=f"scope_{st.session_state.search_reset_key}")
+            unique_strict = (s_type == "Unique")
+            
+            l1_opts = ["All"] + sorted([str(x).strip() for x in df_raw['Level1'].dropna().unique() if str(x).strip()])
+            c1 = st.sidebar.selectbox("L1", l1_opts, key=f"s1_{st.session_state.search_reset_key}")
+            if c1 != "All":
+                final_l1 = [c1]
+                l2_opts = ["All"] + sorted([str(x).strip() for x in df_raw[df_raw['Level1'] == c1]['Level2'].dropna().unique() if str(x).strip()])
+                c2 = st.sidebar.selectbox("L2", l2_opts, key=f"s2_{st.session_state.search_reset_key}")
+                if c2 != "All":
+                    final_l2 = [c2]
+                    l3_cols = ['Level3-1','Level3-2','Level3-3','Level3-4']
+                    raw_l3 = df_raw[df_raw['Level2'] == c2][l3_cols].values.ravel('K')
+                    l3_opts = ["All"] + sorted([str(x).strip() for x in pd.unique(raw_l3) if pd.notna(x) and str(x).strip()])
+                    if len(l3_opts) > 1:
+                        c3 = st.sidebar.selectbox("L3", l3_opts, key=f"s3_{st.session_state.search_reset_key}")
+                        if c3 != "All": final_l3 = [c3]
+        else:
+            final_l1 = st.sidebar.multiselect("L1", sorted([str(x).strip() for x in df_raw['Level1'].dropna().unique() if str(x).strip()]), key=f"m1_{st.session_state.search_reset_key}")
+            final_l2 = st.sidebar.multiselect("L2", sorted([str(x).strip() for x in df_raw['Level2'].dropna().unique() if str(x).strip()]), key=f"m2_{st.session_state.search_reset_key}")
+            l3_raw_all = df_raw[['Level3-1','Level3-2','Level3-3','Level3-4']].values.ravel('K')
+            final_l3 = st.sidebar.multiselect("L3", sorted([str(x).strip() for x in pd.unique(l3_raw_all) if pd.notna(x) and str(x).strip()]), key=f"m3_{st.session_state.search_reset_key}")
+
+    st.sidebar.markdown("---")
+    if st.sidebar.button("🚀 SEARCH", use_container_width=True, type="primary"):
+        st.session_state.search_clicked = True
+    if st.sidebar.button("🧹 CLEAR", use_container_width=True):
+        st.session_state.search_reset_key += 1
+        st.session_state.search_clicked = False
+        st.rerun()
+
+    # 2. Results Logic
+    q_search = st.text_input("📝 KEYWORD SEARCH", placeholder="Search project name or ID...", key=f"q_{st.session_state.search_reset_key}")
+    
+    if getattr(st.session_state, 'search_clicked', False) or q_search:
+        df = df_raw.copy()
+        if final_l1 or final_l2 or final_l3:
+            def filter_logic(group):
+                assigned = set()
+                for col in ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
+                    assigned.update(group[col].dropna().astype(str).str.strip().unique())
+                assigned.discard("")
+                search_targets = set([str(x).strip() for x in (final_l1 + final_l2 + final_l3)])
+                if unique_strict: return assigned == search_targets
+                return search_targets.issubset(assigned)
+            
+            m_ids = df_raw.groupby('Project ID').filter(filter_logic)['Project ID'].unique()
+            df = df_raw[df_raw['Project ID'].isin(m_ids)]
+
+        if q_search:
+            df = df[df['Project'].str.contains(q_search, case=False, na=False) | df['Project ID'].astype(str).str.contains(q_search, case=False, na=False)]
+
+        st.subheader(f"FOUND {
