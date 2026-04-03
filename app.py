@@ -41,7 +41,7 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-# --- CSV FIELDNAMES (Added 'Remarks') ---
+# --- CSV FIELDNAMES ---
 FIELDNAMES = ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4', 'Project', 'Project ID', 'Cert Date', 'Approval Pack/NOC', 'Remarks', 'Status']
 
 # --- FILE OPERATIONS ---
@@ -88,33 +88,4 @@ def check_password():
     with st.form("login"):
         pw = st.text_input("Access Token", type="password")
         if st.form_submit_button("UNLOCK"):
-            if pw == "1234567890":
-                st.session_state.password_correct = True
-                st.rerun()
-            else: st.error("Invalid credentials.")
-    return False
-
-# --- MAIN APP ---
-if check_password():
-    if "search_reset_key" not in st.session_state: st.session_state.search_reset_key = 0
-    df_raw = load_main_data()
-    
-    st.markdown("<div class='hero-section'><h1>🏙️ TRD GOOD PROJECTS LIBRARY</h1><p style='color:#38BDF8;'>NYC ZONING ANALYTICS TERMINAL</p></div>", unsafe_allow_html=True)
-
-    # 1. Sidebar Search
-    st.sidebar.markdown("### 🛠️ SYSTEM FILTERS")
-    search_mode = st.sidebar.radio("MODE", ["Single-Action Search", "Multi-Action Search"], key=f"mode_{st.session_state.search_reset_key}")
-    
-    final_l1, final_l2, final_l3 = [], [], []
-    unique_strict = False
-
-    if not df_raw.empty:
-        if search_mode == "Single-Action Search":
-            s_type = st.sidebar.segmented_control("SCOPE", ["General", "Unique"], default="General", key=f"scope_{st.session_state.search_reset_key}")
-            unique_strict = (s_type == "Unique")
-            l1_opts = ["All"] + sorted([str(x).strip() for x in df_raw['Level1'].dropna().unique() if str(x).strip()])
-            c1 = st.sidebar.selectbox("L1", l1_opts, key=f"s1_{st.session_state.search_reset_key}")
-            if c1 != "All":
-                final_l1 = [c1]
-                l2_opts = ["All"] + sorted([str(x).strip() for x in df_raw[df_raw['Level1'] == c1]['Level2'].dropna().unique() if str(x).strip()])
-                c2 = st.sidebar.selectbox("L2", l2_opts, key
+            if pw == "1234567
