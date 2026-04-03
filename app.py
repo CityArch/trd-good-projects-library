@@ -150,7 +150,7 @@ if getattr(st.session_state, 'search_clicked', False) or q_search:
             with st.container(border=True):
                 row1 = gp.iloc[0]
                 st.markdown(f"### {row1['Project']}")
-                # ORDER: Project ID -> Cert Date
+                # ORDER: Project ID | Cert Date
                 st.markdown(f"<p class='mono-text'><b>Project ID:</b> {p_id} | <b>Cert Date:</b> {row1.get('Cert Date', row1.get('Cert Year', ''))}</p>", unsafe_allow_html=True)
                 
                 # ORDER: Categorized Actions
@@ -161,14 +161,14 @@ if getattr(st.session_state, 'search_clicked', False) or q_search:
                     cat_actions.append(chain)
                 st.markdown(f"<p class='mono-text'><b>Categorized Actions:</b><br>{'<br>'.join(['• ' + a for a in cat_actions])}</p>", unsafe_allow_html=True)
                 
-                # ORDER: Remarks (Right above ZAP)
+                # ORDER: Remarks (FORCED VISIBILITY)
                 rem_val = str(row1.get('Remarks', '')).strip()
-                if rem_val and rem_val.lower() != 'nan':
+                if rem_val and rem_val.lower() != 'nan' and rem_val != "":
                     st.markdown(f"<div class='remarks-box'><b>Remarks:</b> {rem_val}</div>", unsafe_allow_html=True)
                 
-                # ORDER: ZAP Button (At the very end)
+                # ORDER: ZAP Button
                 zap_url = str(row1.get('Approval Pack/NOC', '')).strip()
-                if zap_url and zap_url.lower() != 'nan':
+                if zap_url and zap_url.lower() != 'nan' and zap_url != "":
                     st.link_button("ZAP", zap_url, use_container_width=True)
 
 # 3. Persistent Staging Area
@@ -196,6 +196,7 @@ with c_entry:
                     new_row = {'Level1': n_l1[0], 'Level2': n_l2[0], 'Project': n_name, 'Project ID': n_id, 'Cert Date': n_date.strftime("%m-%d-%Y"), 'Approval Pack/NOC': clean_link, 'Remarks': n_rem, 'Status': 'Pending'}
                     for i in range(4): new_row[f'Level3-{i+1}'] = n_l3[i] if len(n_l3) > i else ""
                     save_row('review_queue.csv', new_row); st.rerun()
+                else: st.error("Fill Name, ID, L1, and L2.")
     else: st.warning("Queue Full (20).")
 
 with c_admin:
@@ -207,17 +208,14 @@ with c_admin:
             h_col, a_col = st.columns([0.8, 0.2])
             with h_col:
                 st.markdown(f"**{i+1}- {'🟢 ' if is_app else ''}{clean['Project']}**")
-            
             l3s = [clean[c] for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if clean[c]]
             st.markdown(f"<div class='mono-text'><b>Project ID:</b> {clean['Project ID']} | <b>DATE:</b> {item.get('Cert Date', item.get('Cert Year', ''))}<br><b>Categorized Actions:</b> {clean['Level1']} > {clean['Level2']}" + (f" > {', '.join(l3s)}" if l3s else "") + "</div>", unsafe_allow_html=True)
-            
             z_col, r_col = st.columns([0.2, 0.8])
             with z_col:
                 z_link = clean.get('Approval Pack/NOC', '').strip()
                 if z_link: st.link_button("ZAP", z_link, use_container_width=True)
             with r_col:
                 if clean['Remarks']: st.markdown(f"<div class='remarks-box'><b>Remarks:</b> {clean['Remarks']}</div>", unsafe_allow_html=True)
-            
             with a_col:
                 b1, b2 = st.columns(2)
                 if not is_app and num_app < 10:
