@@ -31,7 +31,7 @@ st.markdown(f"""
     }}
     .small-header {{ font-size: 1.1rem !important; font-weight: 600; color: #38BDF8; text-transform: uppercase; margin-bottom: 10px; }}
     .mono-text {{ font-family: 'Roboto Mono', monospace; font-size: 0.85rem; color: #94A3B8; }}
-    .remarks-box {{ background: rgba(56, 189, 248, 0.1); border-left: 3px solid #38BDF8; padding: 10px; border-radius: 4px; font-size: 0.85rem; color: #CBD5E1; flex-grow: 1; }}
+    .remarks-box {{ background: rgba(56, 189, 248, 0.1); border-left: 3px solid #38BDF8; padding: 10px; border-radius: 4px; font-size: 0.85rem; color: #CBD5E1; }}
     div[data-testid="stVerticalBlock"] > div[style*="border"] {{
         background: rgba(30, 41, 59, 0.7) !important;
         backdrop-filter: blur(10px); border: 1px solid #334155 !important; border-radius: 12px !important;
@@ -77,12 +77,12 @@ if "password_correct" not in st.session_state: st.session_state.password_correct
 if not st.session_state.password_correct:
     st.markdown("<div class='hero-section'><h1>🔒 TRD Good Projects Library</h1></div>", unsafe_allow_html=True)
     with st.form("login"):
-        pw = st.text_input("Access Token", type="password")
+        pw = st.text_input("Passcode", type="password")  # Revized label
         if st.form_submit_button("UNLOCK"):
             if pw == "1234567890":
                 st.session_state.password_correct = True
                 st.rerun()
-            else: st.error("Invalid credentials.")
+            else: st.error("Invalid passcode.")
     st.stop()
 
 # --- APP START ---
@@ -109,8 +109,8 @@ if not df_raw.empty:
             c2 = st.sidebar.selectbox("L2", l2_opts, key=f"s2_{st.session_state.search_reset_key}")
             if c2 != "All":
                 final_l2 = [c2]
-                l3_vals = pd.unique(df_raw[df_raw['Level2'] == c2][['Level3-1','Level3-2','Level3-3','Level3-4']].values.ravel('K'))
-                l3_opts = ["All"] + sorted([str(x).strip() for x in l3_vals if str(x).strip()])
+                l3_all_vals = pd.unique(df_raw[df_raw['Level2'] == c2][['Level3-1','Level3-2','Level3-3','Level3-4']].values.ravel('K'))
+                l3_opts = ["All"] + sorted([str(x).strip() for x in l3_all_vals if str(x).strip()])
                 if len(l3_opts) > 1:
                     c3 = st.sidebar.selectbox("L3", l3_opts, key=f"s3_{st.session_state.search_reset_key}")
                     if c3 != "All": final_l3 = [c3]
@@ -177,7 +177,12 @@ with c_entry:
             n_rem = st.text_area("Remarks")
             if st.form_submit_button("SUBMIT"):
                 if n_name and n_id and n_l1 and n_l2:
-                    new_row = {'Level1': n_l1[0], 'Level2': n_l2[0], 'Project': n_name, 'Project ID': n_id, 'Cert Date': n_date.strftime("%m-%d-%Y"), 'Approval Pack/NOC': n_link, 'Remarks': n_rem, 'Status': 'Pending'}
+                    # FIX: Auto-prepend https:// if missing to prevent relative URL redirection
+                    clean_link = n_link.strip()
+                    if clean_link and not (clean_link.startswith("http://") or clean_link.startswith("https://")):
+                        clean_link = "https://" + clean_link
+                    
+                    new_row = {'Level1': n_l1[0], 'Level2': n_l2[0], 'Project': n_name, 'Project ID': n_id, 'Cert Date': n_date.strftime("%m-%d-%Y"), 'Approval Pack/NOC': clean_link, 'Remarks': n_rem, 'Status': 'Pending'}
                     for i in range(4): new_row[f'Level3-{i+1}'] = n_l3[i] if len(n_l3) > i else ""
                     save_row('review_queue.csv', new_row); st.rerun()
                 else: st.error("Fill Name, ID, L1, and L2.")
@@ -189,27 +194,22 @@ with c_admin:
         clean = {k: ("" if str(v).lower() == "nan" else str(v)).strip() for k, v in item.items()}
         is_app = (clean['Status'] == 'Approved')
         with st.container(border=True):
-            header_col, action_col = st.columns([0.8, 0.2])
-            with header_col:
+            h_col, a_col = st.columns([0.8, 0.2])
+            with h_col:
                 st.markdown(f"**{i+1}- {'🟢 ' if is_app else ''}{clean['Project']}**")
             
-            # CATEGORIZED ACTIONS
             l3s = [clean[c] for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if clean[c]]
             st.markdown(f"<div class='mono-text'>ID: {clean['Project ID']} | DATE: {item.get('Cert Date', item.get('Cert Year', ''))}<br><b>CATEGORIZED ACTIONS:</b> {clean['Level1']} > {clean['Level2']}" + (f" > {', '.join(l3s)}" if l3s else "") + "</div>", unsafe_allow_html=True)
             
-            # NEW ROW FOR ZAP + REMARKS
-            zap_rem_col1, zap_rem_col2 = st.columns([0.2, 0.8])
-            with zap_rem_col1:
+            z_col, r_col = st.columns([0.2, 0.8])
+            with z_col:
                 z_link = clean.get('Approval Pack/NOC', '').strip()
-                if z_link:
-                    st.link_button("ZAP", z_link, use_container_width=True)
-            with zap_rem_col2:
-                if clean['Remarks']:
-                    st.markdown(f"<div class='remarks-box'><b>REMARKS:</b> {clean['Remarks']}</div>", unsafe_allow_html=True)
+                if z_link: st.link_button("ZAP", z_link, use_container_width=True)
+            with r_col:
+                if clean['Remarks']: st.markdown(f"<div class='remarks-box'><b>REMARKS:</b> {clean['Remarks']}</div>", unsafe_allow_html=True)
             
-            # ACTION BUTTONS IN TOP RIGHT
-            with action_col:
-                btn_row1, btn_row2 = st.columns(2)
+            with a_col:
+                b1, b2 = st.columns(2)
                 if not is_app and num_app < 10:
-                    if btn_row1.button("✅", key=f"ok{i}"): update_queue_status(clean['Project ID'], "Approved"); st.rerun()
-                if btn_row2.button("🗑️", key=f"tr{i}"): delete_from_review(clean['Project ID']); st.rerun()
+                    if b1.button("✅", key=f"ok{i}"): update_queue_status(clean['Project ID'], "Approved"); st.rerun()
+                if b2.button("🗑️", key=f"tr{i}"): delete_from_review(clean['Project ID']); st.rerun()
