@@ -32,6 +32,13 @@ st.markdown(f"""
     .small-header {{ font-size: 1.1rem !important; font-weight: 600; color: #38BDF8; text-transform: uppercase; margin-bottom: 10px; }}
     .mono-text {{ font-family: 'Roboto Mono', monospace; font-size: 0.85rem; color: #94A3B8; margin-bottom: 5px; }}
     .remarks-box {{ background: rgba(56, 189, 248, 0.1); border-left: 3px solid #38BDF8; padding: 10px; border-radius: 4px; font-size: 0.85rem; color: #CBD5E1; margin-top: 5px; margin-bottom: 10px; }}
+    
+    /* Ensure Sidebar Buttons are uniform */
+    div[data-testid="stSidebarNav"] + div stButton button {{
+        height: 45px !important;
+        padding: 0px !important;
+    }}
+    
     div[data-testid="stVerticalBlock"] > div[style*="border"] {{
         background: rgba(30, 41, 59, 0.7) !important;
         backdrop-filter: blur(10px); border: 1px solid #334155 !important; border-radius: 12px !important;
@@ -120,11 +127,17 @@ if not df_raw.empty:
         l3_all = pd.unique(df_raw[['Level3-1','Level3-2','Level3-3','Level3-4']].values.ravel('K'))
         final_l3 = st.sidebar.multiselect("L3", sorted([str(x).strip() for x in l3_all if str(x).strip()]), key=f"m3_{st.session_state.search_reset_key}")
 
-if st.sidebar.button("🚀 SEARCH", type="primary"): st.session_state.search_clicked = True
-if st.sidebar.button("🧹 CLEAR"):
-    st.session_state.search_reset_key += 1
-    st.session_state.search_clicked = False
-    st.rerun()
+st.sidebar.markdown("---")
+# Side-by-Side Sidebar Buttons
+side_col1, side_col2 = st.sidebar.columns(2)
+with side_col1:
+    if st.button("🚀 SEARCH", type="primary", use_container_width=True):
+        st.session_state.search_clicked = True
+with side_col2:
+    if st.button("🧹 CLEAR", use_container_width=True):
+        st.session_state.search_reset_key += 1
+        st.session_state.search_clicked = False
+        st.rerun()
 
 # 2. Results Area
 q_search = st.text_input("📝 KEYWORD SEARCH", placeholder="Search project name or ID...", key=f"q_{st.session_state.search_reset_key}")
@@ -150,10 +163,8 @@ if getattr(st.session_state, 'search_clicked', False) or q_search:
             with st.container(border=True):
                 row1 = gp.iloc[0]
                 st.markdown(f"### {row1['Project']}")
-                # ORDER: Project ID | Cert Date
                 st.markdown(f"<p class='mono-text'><b>Project ID:</b> {p_id} | <b>Cert Date:</b> {row1.get('Cert Date', row1.get('Cert Year', ''))}</p>", unsafe_allow_html=True)
                 
-                # ORDER: Categorized Actions
                 cat_actions = []
                 for _, r in gp.iterrows():
                     l3_list = [str(r[c]) for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if str(r[c]).strip() and str(r[c]).lower() != 'nan']
@@ -161,12 +172,10 @@ if getattr(st.session_state, 'search_clicked', False) or q_search:
                     cat_actions.append(chain)
                 st.markdown(f"<p class='mono-text'><b>Categorized Actions:</b><br>{'<br>'.join(['• ' + a for a in cat_actions])}</p>", unsafe_allow_html=True)
                 
-                # ORDER: Remarks (FORCED VISIBILITY)
                 rem_val = str(row1.get('Remarks', '')).strip()
                 if rem_val and rem_val.lower() != 'nan' and rem_val != "":
                     st.markdown(f"<div class='remarks-box'><b>Remarks:</b> {rem_val}</div>", unsafe_allow_html=True)
                 
-                # ORDER: ZAP Button
                 zap_url = str(row1.get('Approval Pack/NOC', '')).strip()
                 if zap_url and zap_url.lower() != 'nan' and zap_url != "":
                     st.link_button("ZAP", zap_url, use_container_width=True)
