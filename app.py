@@ -40,17 +40,8 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-# --- CSV FIELDNAMES ---
+# --- FIELDNAMES & HELPERS ---
 FIELDNAMES = ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4', 'Project', 'Project ID', 'Cert Date', 'Approval Pack/NOC', 'Status']
-
-# --- FILE OPERATIONS ---
-def save_row(file_path, data_dict):
-    file_exists = os.path.isfile(file_path)
-    with open(file_path, mode='a', newline='', encoding='utf-8-sig') as f:
-        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
-        if not file_exists: writer.writeheader()
-        clean_dict = {k: str(data_dict.get(k, "")).replace("nan", "").strip() for k in FIELDNAMES}
-        writer.writerow(clean_dict)
 
 def load_csv_safe(file_path):
     if not os.path.exists(file_path): return pd.DataFrame()
@@ -61,6 +52,14 @@ def load_csv_safe(file_path):
         except: return pd.DataFrame()
     df.columns = [str(c).strip().replace('ï»¿', '') for c in df.columns]
     return df.fillna("")
+
+def save_row(file_path, data_dict):
+    file_exists = os.path.isfile(file_path)
+    with open(file_path, mode='a', newline='', encoding='utf-8-sig') as f:
+        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+        if not file_exists: writer.writeheader()
+        clean_dict = {k: str(data_dict.get(k, "")).replace("nan", "").strip() for k in FIELDNAMES}
+        writer.writerow(clean_dict)
 
 def update_queue_status(proj_id, status_val):
     df = load_csv_safe('review_queue.csv')
@@ -98,7 +97,6 @@ if check_password():
     if "search_reset_key" not in st.session_state: st.session_state.search_reset_key = 0
     df_raw = load_main_data()
     
-    # UPDATED TITLE HERE
     st.markdown("<div class='hero-section'><h1>🏙️ TRD GOOD PROJECTS LIBRARY</h1><p style='color:#38BDF8;'>NYC ZONING ANALYTICS TERMINAL</p></div>", unsafe_allow_html=True)
 
     # 1. Sidebar Search Filters
@@ -106,8 +104,14 @@ if check_password():
     search_mode = st.sidebar.radio("MODE", ["Single-Action Search", "Multi-Action Search"], key=f"mode_{st.session_state.search_reset_key}")
     
     final_l1, final_l2, final_l3 = [], [], []
+    unique_strict = False
+
     if not df_raw.empty:
         if search_mode == "Single-Action Search":
+            # NEW: Unique vs General Toggle
+            s_type = st.sidebar.segmented_control("SCOPE", ["General", "Unique"], default="General", key=f"scope_{st.session_state.search_reset_key}")
+            unique_strict = (s_type == "Unique")
+
             l1_opts = ["All"] + sorted([str(x).strip() for x in df_raw['Level1'].dropna().unique() if str(x).strip()])
             c1 = st.sidebar.selectbox("L1", l1_opts, key=f"s1_{st.session_state.search_reset_key}")
             if c1 != "All":
@@ -137,20 +141,31 @@ if check_password():
         st.session_state.search_clicked = False
         st.rerun()
 
-    # 2. Main Search Bar & Results Area
+    # 2. Main Search bar
     q_search = st.text_input("📝 KEYWORD SEARCH", placeholder="Search project name or ID...", key=f"q_{st.session_state.search_reset_key}")
     
     if getattr(st.session_state, 'search_clicked', False) or q_search:
         df = df_raw.copy()
+        
         if final_l1 or final_l2 or final_l3:
-            def check_match(group):
-                pool = set()
+            def filter_logic(group):
+                # Flatten all categories assigned to this project ID
+                assigned = set()
                 for col in ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
-                    pool.update(group[col].dropna().astype(str).str.strip().unique())
-                search_items = set([str(x).strip() for x in (final_l1 + final_l2 + final_l3)])
-                return search_items.issubset(pool)
-            m_ids = df_raw.groupby('Project ID').filter(check_match)['Project ID'].unique()
+                    assigned.update(group[col].dropna().astype(str).str.strip().unique())
+                assigned.discard("")
+                
+                search_targets = set([str(x).strip() for x in (final_l1 + final_l2 + final_l3)])
+                
+                # UNIQUE MODE: Assigned categories must match searched categories exactly (nothing more)
+                if unique_strict:
+                    return assigned == search_targets
+                # GENERAL MODE: Project must contain at least the searched targets
+                return search_targets.issubset(assigned)
+            
+            m_ids = df_raw.groupby('Project ID').filter(filter_logic)['Project ID'].unique()
             df = df_raw[df_raw['Project ID'].isin(m_ids)]
+
         if q_search:
             df = df[df['Project'].str.contains(q_search, case=False, na=False) | df['Project ID'].astype(str).str.contains(q_search, case=False, na=False)]
 
@@ -162,8 +177,8 @@ if check_password():
                 with grid[idx % 3]:
                     with st.container(border=True):
                         st.markdown(f"### {first_row['Project']}")
-                        item_date = first_row.get('Cert Date', first_row.get('Cert Year', 'N/A'))
-                        st.markdown(f"<p class='mono-text'>ID: {proj_id} | {item_date}</p>", unsafe_allow_html=True)
+                        disp_date = first_row.get('Cert Date', first_row.get('Cert Year', 'N/A'))
+                        st.markdown(f"<p class='mono-text'>ID: {proj_id} | {disp_date}</p>", unsafe_allow_html=True)
                         for _, row in group.iterrows():
                             l3_v = [str(row[c]) for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if pd.notna(row[c]) and str(row[c]).strip()]
                             chain = f"{row['Level1']} > {row['Level2']}" + (f" > {', '.join(l3_v)}" if l3_v else "")
@@ -196,7 +211,7 @@ if check_password():
                 l3_f = sorted([str(x).strip() for x in pd.unique(df_raw[['Level3-1','Level3-2','Level3-3','Level3-4']].values.ravel('K')) if pd.notna(x) and str(x).strip()]) if not df_raw.empty else []
                 n_l3 = st.multiselect("L3 Focus Areas", l3_f)
                 
-                if st.form_submit_button("SUBMIT THE PROJECT"):
+                if st.form_submit_button("SUBMIT"):
                     if n_name and n_id and n_l1 and n_l2:
                         new_row = {
                             'Level1': n_l1[0], 'Level2': n_l2[0], 
