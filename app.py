@@ -31,9 +31,8 @@ st.markdown(f"""
     }}
     .small-header {{ font-size: 1.1rem !important; font-weight: 600; color: #38BDF8; text-transform: uppercase; margin-bottom: 10px; }}
     .mono-text {{ font-family: 'Roboto Mono', monospace; font-size: 0.85rem; color: #94A3B8; margin-bottom: 5px; }}
-    .remarks-box {{ background: rgba(56, 189, 248, 0.1); border-left: 3px solid #38BDF8; padding: 10px; border-radius: 4px; font-size: 0.85rem; color: #CBD5E1; margin-top: 5px; margin-bottom: 10px; }}
+    .remarks-box {{ background: rgba(56, 189, 248, 0.1); border-left: 3px solid #38BDF8; padding: 10px; border-radius: 4px; font-size: 0.85rem; color: #CBD5E1; margin-top: 5px; margin-bottom: 5px; }}
     
-    /* Ensure Sidebar Buttons are uniform */
     div[data-testid="stSidebarNav"] + div stButton button {{
         height: 45px !important;
         padding: 0px !important;
@@ -128,7 +127,6 @@ if not df_raw.empty:
         final_l3 = st.sidebar.multiselect("L3", sorted([str(x).strip() for x in l3_all if str(x).strip()]), key=f"m3_{st.session_state.search_reset_key}")
 
 st.sidebar.markdown("---")
-# Side-by-Side Sidebar Buttons
 side_col1, side_col2 = st.sidebar.columns(2)
 with side_col1:
     if st.button("🚀 SEARCH", type="primary", use_container_width=True):
@@ -165,16 +163,17 @@ if getattr(st.session_state, 'search_clicked', False) or q_search:
                 st.markdown(f"### {row1['Project']}")
                 st.markdown(f"<p class='mono-text'><b>Project ID:</b> {p_id} | <b>Cert Date:</b> {row1.get('Cert Date', row1.get('Cert Year', ''))}</p>", unsafe_allow_html=True)
                 
-                cat_actions = []
+                # Sychronized Lists for Actions and Remarks
+                st.markdown("<p class='mono-text'><b>Categorized Actions & Remarks:</b></p>", unsafe_allow_html=True)
                 for _, r in gp.iterrows():
                     l3_list = [str(r[c]) for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if str(r[c]).strip() and str(r[c]).lower() != 'nan']
-                    chain = f"{r['Level1']} > {r['Level2']}" + (f" > {', '.join(l3_list)}" if l3_list else "")
-                    cat_actions.append(chain)
-                st.markdown(f"<p class='mono-text'><b>Categorized Actions:</b><br>{'<br>'.join(['• ' + a for a in cat_actions])}</p>", unsafe_allow_html=True)
-                
-                rem_val = str(row1.get('Remarks', '')).strip()
-                if rem_val and rem_val.lower() != 'nan' and rem_val != "":
-                    st.markdown(f"<div class='remarks-box'><b>Remarks:</b> {rem_val}</div>", unsafe_allow_html=True)
+                    chain = f"• {r['Level1']} > {r['Level2']}" + (f" > {', '.join(l3_list)}" if l3_list else "")
+                    st.markdown(f"<p class='mono-text'>{chain}</p>", unsafe_allow_html=True)
+                    
+                    # Remark tied specifically to this chain row
+                    rem_val = str(r.get('Remarks', '')).strip()
+                    if rem_val and rem_val.lower() != 'nan' and rem_val != "":
+                        st.markdown(f"<div class='remarks-box'><b>Remark:</b> {rem_val}</div>", unsafe_allow_html=True)
                 
                 zap_url = str(row1.get('Approval Pack/NOC', '')).strip()
                 if zap_url and zap_url.lower() != 'nan' and zap_url != "":
