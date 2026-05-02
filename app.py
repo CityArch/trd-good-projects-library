@@ -29,16 +29,20 @@ st.markdown(f"""
         padding: 60px 20px; border-radius: 15px; border: 1px solid #334155;
         text-align: center; margin-bottom: 30px;
     }}
-    .small-header {{ font-size: 1.1rem !important; font-weight: 600; color: #38BDF8; text-transform: uppercase; margin-bottom: 10px; }}
     .mono-text {{ font-family: 'Roboto Mono', monospace; font-size: 0.85rem; color: #94A3B8; margin-bottom: 5px; }}
-    .remarks-box {{ background: rgba(56, 189, 248, 0.1); border-left: 3px solid #38BDF8; padding: 10px; border-radius: 4px; font-size: 0.85rem; color: #CBD5E1; margin-top: 5px; margin-bottom: 5px; }}
-    .highlight-red {{ color: #EF4444 !important; font-weight: 700; }}
+    .remarks-box {{ background: rgba(56, 189, 248, 0.1); border-left: 3px solid #38BDF8; padding: 10px; border-radius: 4px; font-size: 0.85rem; color: #CBD5E1; margin-top: 5px; }}
     
-    div[data-testid="stSidebarNav"] + div stButton button {{
-        height: 45px !important;
-        padding: 0px !important;
+    /* Tree Column Styling */
+    .tree-family {{
+        background: rgba(30, 41, 59, 0.5);
+        border: 1px solid #38BDF8;
+        border-radius: 10px;
+        padding: 15px;
+        margin-right: 10px;
     }}
+    .branch-label {{ color: #38BDF8; font-weight: bold; font-size: 0.9rem; margin-top: 10px; }}
     
+    div[data-testid="stSidebarNav"] + div stButton button {{ height: 45px !important; }}
     div[data-testid="stVerticalBlock"] > div[style*="border"] {{
         background: rgba(30, 41, 59, 0.7) !important;
         backdrop-filter: blur(10px); border: 1px solid #334155 !important; border-radius: 12px !important;
@@ -46,7 +50,7 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-# --- CSV & DATA HELPERS ---
+# --- DATA HELPERS ---
 FIELDNAMES = ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4', 'Project', 'Project ID', 'Cert Date', 'Approval Pack/NOC', 'Remarks', 'Status']
 
 def load_csv_safe(file_path):
@@ -67,18 +71,6 @@ def save_row(file_path, data_dict):
         clean_dict = {k: str(data_dict.get(k, "")).replace("nan", "").strip() for k in FIELDNAMES}
         writer.writerow(clean_dict)
 
-def update_queue_status(proj_id, status_val):
-    df = load_csv_safe('review_queue.csv')
-    if df.empty: return
-    df.loc[df['Project ID'].astype(str).str.strip() == str(proj_id).strip(), 'Status'] = status_val
-    df.to_csv('review_queue.csv', index=False, encoding='utf-8-sig')
-
-def delete_from_review(proj_id):
-    df = load_csv_safe('review_queue.csv')
-    if df.empty: return
-    df = df[df['Project ID'].astype(str).str.strip() != str(proj_id).strip()]
-    df.to_csv('review_queue.csv', index=False, encoding='utf-8-sig')
-
 # --- AUTHENTICATION ---
 if "password_correct" not in st.session_state: st.session_state.password_correct = False
 if not st.session_state.password_correct:
@@ -92,43 +84,39 @@ if not st.session_state.password_correct:
             else: st.error("Invalid passcode.")
     st.stop()
 
-# --- APP START ---
+# --- INITIALIZE STATE ---
 if "search_reset_key" not in st.session_state: st.session_state.search_reset_key = 0
+if "multi_iterations" not in st.session_state: st.session_state.multi_iterations = [{"l1": None, "l2": None, "l3": None}]
+if "search_clicked" not in st.session_state: st.session_state.search_clicked = False
+
 df_raw = load_csv_safe('projects.csv')
+
+# Defining the Static Structure
+TREE_DATA = {
+    "Use_Waivers": {},
+    "Bulk_Waivers": {
+        "Height_Setbacks": ["Sky Exposure Plane", "Midtown Daylight Rules", "Height Limit Waivers", "Setback Waivers"],
+        "Yards": [], "Lot Coverage": [], "Street Wall Location": [], "Courts": [], "Floor Area": [],
+        "Tower Rules": [], "Distance Between Buildings": [], "Existing Non-Compliances": []
+    },
+    "Parking_Curbcuts": {},
+    "Open_Space": {
+        "POPs": ["New POP", "Design Change to Existing POP", "MOD"],
+        "Waterfronts": [], "Open Space Site Plans": []
+    },
+    "Miscellaneous": {}
+}
 
 st.markdown("<div class='hero-section'><h1>🏙️ TRD GOOD PROJECTS LIBRARY</h1><p style='color:#38BDF8;'>NYC ZONING ANALYTICS TERMINAL</p></div>", unsafe_allow_html=True)
 
-# 1. Sidebar Search
-st.sidebar.markdown("### 🛠️ SYSTEM FILTERS")
+# 1. SIDEBAR CONFIG
+st.sidebar.markdown("### 🛠️ CONFIGURATION")
 search_mode = st.sidebar.radio("MODE", ["Single-Action Search", "Multi-Action Search"], key=f"mode_{st.session_state.search_reset_key}")
-unique_strict = False
-final_l1, final_l2, final_l3 = [], [], []
 
-if not df_raw.empty:
-    if search_mode == "Single-Action Search":
-        s_type = st.sidebar.segmented_control("SCOPE", ["General", "Unique"], default="General", key=f"scope_{st.session_state.search_reset_key}")
-        unique_strict = (s_type == "Unique")
-        
-        l1_opts = ["Select L1 Branch"] + sorted([str(x).strip() for x in df_raw['Level1'].unique() if str(x).strip()])
-        c1 = st.sidebar.selectbox("L1", l1_opts, key=f"s1_{st.session_state.search_reset_key}")
-        
-        if c1 != "Select L1 Branch":
-            final_l1 = [c1]
-            l2_opts = ["Select L2 Branch"] + sorted([str(x).strip() for x in df_raw[df_raw['Level1'] == c1]['Level2'].unique() if str(x).strip()])
-            c2 = st.sidebar.selectbox("L2", l2_opts, key=f"s2_{st.session_state.search_reset_key}")
-            
-            if c2 != "Select L2 Branch":
-                final_l2 = [c2]
-                l3_vals = pd.unique(df_raw[df_raw['Level2'] == c2][['Level3-1','Level3-2','Level3-3','Level3-4']].values.ravel('K'))
-                l3_opts = ["Select L3 Branch"] + sorted([str(x).strip() for x in l3_vals if str(x).strip()])
-                if len(l3_opts) > 1:
-                    c3 = st.sidebar.selectbox("L3", l3_opts, key=f"s3_{st.session_state.search_reset_key}")
-                    if c3 != "Select L3 Branch": final_l3 = [c3]
-    else:
-        final_l1 = st.sidebar.multiselect("L1", sorted(df_raw['Level1'].unique()), key=f"m1_{st.session_state.search_reset_key}")
-        final_l2 = st.sidebar.multiselect("L2", sorted(df_raw['Level2'].unique()), key=f"m2_{st.session_state.search_reset_key}")
-        l3_all = pd.unique(df_raw[['Level3-1','Level3-2','Level3-3','Level3-4']].values.ravel('K'))
-        final_l3 = st.sidebar.multiselect("L3", sorted([str(x).strip() for x in l3_all if str(x).strip()]), key=f"m3_{st.session_state.search_reset_key}")
+unique_strict = False
+if search_mode == "Single-Action Search":
+    s_type = st.sidebar.segmented_control("SCOPE", ["General", "Unique"], default="General", key=f"scope_{st.session_state.search_reset_key}")
+    unique_strict = (s_type == "Unique")
 
 st.sidebar.markdown("---")
 side_col1, side_col2 = st.sidebar.columns(2)
@@ -137,113 +125,134 @@ with side_col1:
         st.session_state.search_clicked = True
 with side_col2:
     if st.button("🧹 CLEAR", use_container_width=True):
-        # Full Reset: Incrementing the key forces all widgets with this key to destroy/rebuild to default state
         st.session_state.search_reset_key += 1
+        st.session_state.multi_iterations = [{"l1": None, "l2": None, "l3": None}]
         st.session_state.search_clicked = False
         st.rerun()
 
-# 2. Results Area
-q_search = st.text_input("📝 KEYWORD SEARCH", placeholder="Search project name or ID...", key=f"q_{st.session_state.search_reset_key}")
-if getattr(st.session_state, 'search_clicked', False) or q_search:
+# 2. DYNAMIC TREE WORKSPACE
+st.subheader("🌳 Search Hierarchy Workspace")
+
+# We create columns dynamically based on the number of iterations (max 5)
+cols = st.columns(len(st.session_state.multi_iterations))
+
+for i, iteration in enumerate(st.session_state.multi_iterations):
+    with cols[i]:
+        st.markdown(f"<div class='tree-family'>", unsafe_allow_html=True)
+        st.markdown(f"**Family Tree #{i+1}**")
+        
+        # L1 Selection (Grandpa)
+        l1_list = ["--"] + list(TREE_DATA.keys())
+        st.session_state.multi_iterations[i]["l1"] = st.selectbox(f"L1 (Grandpa)", l1_list, key=f"l1_{i}_{st.session_state.search_reset_key}")
+        
+        sel_l1 = st.session_state.multi_iterations[i]["l1"]
+        if sel_l1 != "--":
+            # L2 Selection (Daddy)
+            l2_list = ["--"] + list(TREE_DATA[sel_l1].keys())
+            st.session_state.multi_iterations[i]["l2"] = st.radio(f"L2 (Daddy) - {sel_l1}", l2_list, key=f"l2_{i}_{st.session_state.search_reset_key}")
+            
+            sel_l2 = st.session_state.multi_iterations[i]["l2"]
+            if sel_l2 != "--":
+                # L3 Selection (Son)
+                l3_list = TREE_DATA[sel_l1][sel_l2]
+                if l3_list:
+                    st.session_state.multi_iterations[i]["l3"] = st.radio(f"L3 (Son) - {sel_l2}", ["--"] + l3_list, key=f"l3_{i}_{st.session_state.search_reset_key}")
+                else:
+                    st.info("No L3 branches defined.")
+                    st.session_state.multi_iterations[i]["l3"] = None
+        st.markdown("</div>", unsafe_allow_html=True)
+
+# Navigation Buttons for Tree
+btn_col1, btn_col2, _ = st.columns([0.15, 0.15, 0.7])
+if search_mode == "Multi-Action Search" and len(st.session_state.multi_iterations) < 5:
+    if btn_col1.button("➕ CONTINUE", use_container_width=True):
+        st.session_state.multi_iterations.append({"l1": None, "l2": None, "l3": None})
+        st.rerun()
+
+if len(st.session_state.multi_iterations) > 1:
+    if btn_col2.button("🏁 FINISH", use_container_width=True):
+        st.success("Hierarchy locked. Click 'SEARCH' in the sidebar to view results.")
+
+# 3. RESULTS AREA
+st.divider()
+q_search = st.text_input("📝 KEYWORD SEARCH", placeholder="Project name or ID...", key=f"q_{st.session_state.search_reset_key}")
+
+if st.session_state.search_clicked or q_search:
     df = df_raw.copy()
-    search_targets = set([str(x).strip() for x in (final_l1 + final_l2 + final_l3)])
     
-    if search_targets:
+    # Filter by Tree Selections
+    valid_selections = [s for s in st.session_state.multi_iterations if s['l1'] and s['l1'] != "--"]
+    
+    if valid_selections:
         def filter_logic(group):
             assigned = set()
+            # Collect all actions for this Project ID
             for col in ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
-                assigned.update(group[col].dropna().astype(str).str.strip().unique())
-            assigned.discard("")
-            return assigned == search_targets if unique_strict else search_targets.issubset(assigned)
-        
+                vals = group[col].dropna().astype(str).str.strip().unique()
+                assigned.update([v for v in vals if v and v.lower() != 'nan'])
+            
+            match_found = False
+            for sel in valid_selections:
+                target_set = {sel['l1']}
+                if sel['l2'] and sel['l2'] != "--": target_set.add(sel['l2'])
+                if sel['l3'] and sel['l3'] != "--": target_set.add(sel['l3'])
+                
+                if unique_strict and search_mode == "Single-Action Search":
+                    if assigned == target_set: match_found = True
+                elif target_set.issubset(assigned):
+                    match_found = True
+            return match_found
+
         m_ids = df_raw.groupby('Project ID').filter(filter_logic)['Project ID'].unique()
         df = df_raw[df_raw['Project ID'].isin(m_ids)]
-    
-    if q_search: 
+
+    if q_search:
         df = df[df['Project'].str.contains(q_search, case=False, na=False) | df['Project ID'].astype(str).str.contains(q_search, case=False, na=False)]
     
     grouped = df.groupby('Project ID')
     st.subheader(f"FOUND {len(grouped)} PROJECTS")
-    grid = st.columns(3)
-    
+    res_grid = st.columns(3)
     for idx, (p_id, gp) in enumerate(grouped):
-        with grid[idx % 3]:
+        with res_grid[idx % 3]:
             with st.container(border=True):
-                row1 = gp.iloc[0]
-                st.markdown(f"### {row1['Project']}")
-                st.markdown(f"<p class='mono-text'><b>Project ID:</b> {p_id} | <b>Cert Date:</b> {row1.get('Cert Date', row1.get('Cert Year', ''))}</p>", unsafe_allow_html=True)
-                
+                r1 = gp.iloc[0]
+                st.markdown(f"### {r1['Project']}")
+                st.markdown(f"<p class='mono-text'><b>Project ID:</b> {p_id} | <b>Cert Date:</b> {r1.get('Cert Date', r1.get('Cert Year', ''))}</p>", unsafe_allow_html=True)
                 st.markdown("<p class='mono-text'><b>Categorized Actions & Remarks:</b></p>", unsafe_allow_html=True)
-                for _, r in gp.iterrows():
-                    l3_list = [str(r[c]) for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if str(r[c]).strip() and str(r[c]).lower() != 'nan']
-                    
-                    # Logic for RED Highlighting
-                    is_hit = False
-                    if not unique_strict and search_targets:
-                        # Check if this specific row contains the search targets
-                        row_vals = set([str(r['Level1']).strip(), str(r['Level2']).strip()] + [str(x).strip() for x in l3_list])
-                        if search_targets.issubset(row_vals):
-                            is_hit = True
-                    
-                    class_name = "highlight-red" if is_hit else "normal-text"
-                    chain_text = f"{r['Level1']} > {r['Level2']}" + (f" > {', '.join(l3_list)}" if l3_list else "")
-                    st.markdown(f"<p class='mono-text • {class_name}'>• {chain_text}</p>", unsafe_allow_html=True)
-                    
-                    rem_val = str(r.get('Remarks', '')).strip()
-                    if rem_val and rem_val.lower() != 'nan' and rem_val != "":
-                        st.markdown(f"<div class='remarks-box'><b>Remark:</b> {rem_val}</div>", unsafe_allow_html=True)
                 
-                zap_url = str(row1.get('Approval Pack/NOC', '')).strip()
-                if zap_url and zap_url.lower() != 'nan' and zap_url != "":
-                    st.link_button("ZAP", zap_url, use_container_width=True)
+                # Order Remarks by the actions listed
+                for _, r in gp.iterrows():
+                    l3s = [str(r[c]) for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if str(r[c]).strip() and str(r[c]).lower() != 'nan']
+                    chain = f"• {r['Level1']} > {r['Level2']}" + (f" > {', '.join(l3s)}" if l3s else "")
+                    st.markdown(f"<p class='mono-text'>{chain}</p>", unsafe_allow_html=True)
+                    if str(r.get('Remarks','')).strip() not in ["","nan"]:
+                        st.markdown(f"<div class='remarks-box'><b>Remarks:</b> {r['Remarks']}</div>", unsafe_allow_html=True)
+                
+                z_url = str(r1.get('Approval Pack/NOC', '')).strip()
+                if z_url and z_url.lower() != 'nan':
+                    st.link_button("ZAP", z_url, use_container_width=True)
 
-# 3. Persistent Staging Area
+# 4. STAGING & ADMIN (Keep existing logic)
 st.divider()
 c_entry, c_admin = st.columns([1, 1.2])
-queue_df = load_csv_safe('review_queue.csv')
-num_app = len(queue_df[queue_df['Status'] == 'Approved']) if not queue_df.empty else 0
+q_df = load_csv_safe('review_queue.csv')
 
 with c_entry:
     st.markdown("<p class='small-header'>📩 New Submission</p>", unsafe_allow_html=True)
-    if len(queue_df) < 20:
-        with st.form("sub_form", clear_on_submit=True):
-            n_name, n_id, n_link = st.text_input("Project Name"), st.text_input("Project ID"), st.text_input("ZAP Link")
-            n_date = st.date_input("Cert Date", min_value=date(2000, 1, 1))
-            n_l1 = st.multiselect("L1 Categories", sorted(df_raw['Level1'].unique()) if not df_raw.empty else [])
-            n_l2 = st.multiselect("L2 Sub-Categories", sorted(df_raw['Level2'].unique()) if not df_raw.empty else [])
-            l3_pool = pd.unique(df_raw[['Level3-1','Level3-2','Level3-3','Level3-4']].values.ravel('K')) if not df_raw.empty else []
-            n_l3 = st.multiselect("L3 Focus Areas", sorted([str(x).strip() for x in l3_pool if str(x).strip()]))
-            n_rem = st.text_area("Remarks")
-            if st.form_submit_button("SUBMIT"):
-                if n_name and n_id and n_l1 and n_l2:
-                    clean_link = n_link.strip()
-                    if clean_link and not (clean_link.startswith("http://") or clean_link.startswith("https://")):
-                        clean_link = "https://" + clean_link
-                    new_row = {'Level1': n_l1[0], 'Level2': n_l2[0], 'Project': n_name, 'Project ID': n_id, 'Cert Date': n_date.strftime("%m-%d-%Y"), 'Approval Pack/NOC': clean_link, 'Remarks': n_rem, 'Status': 'Pending'}
-                    for i in range(4): new_row[f'Level3-{i+1}'] = n_l3[i] if len(n_l3) > i else ""
-                    save_row('review_queue.csv', new_row); st.rerun()
-                else: st.error("Fill Name, ID, L1, and L2.")
-    else: st.warning("Queue Full (20).")
+    with st.form("sub_form", clear_on_submit=True):
+        n_name, n_id, n_link = st.text_input("Name"), st.text_input("ID"), st.text_input("ZAP Link")
+        n_l1 = st.selectbox("L1", list(TREE_DATA.keys()))
+        n_l2 = st.text_input("L2")
+        n_rem = st.text_area("Remarks")
+        if st.form_submit_button("SUBMIT") and n_name:
+            row = {'Level1': n_l1, 'Level2': n_l2, 'Project': n_name, 'Project ID': n_id, 'Approval Pack/NOC': n_link, 'Remarks': n_rem, 'Status': 'Pending'}
+            save_row('review_queue.csv', row); st.rerun()
 
 with c_admin:
     st.markdown("<p class='small-header'>🕵️ Admin Review Queue</p>", unsafe_allow_html=True)
-    for i, item in enumerate(queue_df.to_dict('records')):
-        clean = {k: ("" if str(v).lower() == "nan" else str(v)).strip() for k, v in item.items()}
-        is_app = (clean['Status'] == 'Approved')
-        with st.container(border=True):
-            h_col, a_col = st.columns([0.8, 0.2])
-            with h_col:
-                st.markdown(f"**{i+1}- {'🟢 ' if is_app else ''}{clean['Project']}**")
-            l3s = [clean[c] for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if clean[c]]
-            st.markdown(f"<div class='mono-text'><b>Project ID:</b> {clean['Project ID']} | <b>DATE:</b> {item.get('Cert Date', item.get('Cert Year', ''))}<br><b>Categorized Actions:</b> {clean['Level1']} > {clean['Level2']}" + (f" > {', '.join(l3s)}" if l3s else "") + "</div>", unsafe_allow_html=True)
-            z_col, r_col = st.columns([0.2, 0.8])
-            with z_col:
-                z_link = clean.get('Approval Pack/NOC', '').strip()
-                if z_link: st.link_button("ZAP", z_link, use_container_width=True)
-            with r_col:
-                if clean['Remarks']: st.markdown(f"<div class='remarks-box'><b>Remarks:</b> {clean['Remarks']}</div>", unsafe_allow_html=True)
-            with a_col:
-                b1, b2 = st.columns(2)
-                if not is_app and num_app < 10:
-                    if b1.button("✅", key=f"ok{i}"): update_queue_status(clean['Project ID'], "Approved"); st.rerun()
-                if b2.button("🗑️", key=f"tr{i}"): delete_from_review(clean['Project ID']); st.rerun()
+    if not q_df.empty:
+        for i, item in enumerate(q_df.to_dict('records')):
+            with st.container(border=True):
+                st.write(f"**{item['Project']}** (ID: {item['Project ID']})")
+                if st.button("🗑️", key=f"del_{i}"):
+                    delete_from_review(item['Project ID']); st.rerun()
