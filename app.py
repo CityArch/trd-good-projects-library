@@ -38,22 +38,31 @@ st.markdown(f"""
         border: 2px solid #38BDF8;
         border-radius: 12px;
         padding: 20px;
-        min-height: 550px;
+        min-height: 600px;
         display: flex;
         flex-direction: column;
     }}
-    .family-header {{ color: #38BDF8; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 15px; text-align: center; }}
+    .family-header {{ 
+        color: #38BDF8; 
+        font-weight: bold; 
+        text-transform: uppercase; 
+        border-bottom: 1px solid #334155; 
+        padding-bottom: 8px; 
+        margin-bottom: 15px; 
+        text-align: center;
+    }}
     
-    /* Standardized L1 Image Styling */
+    /* Standardized L1 Image Styling - Positioned at top */
     .standardized-l1-image {{
         display: block;
         margin-left: auto;
         margin-right: auto;
-        max-height: 120px;
-        width: auto;
-        object-fit: contain;
+        max-height: 150px;
+        width: 100%;
+        object-fit: cover;
         border-radius: 8px;
-        margin-bottom: 15px;
+        margin-bottom: 20px;
+        border: 1px solid #334155;
     }}
     
     div[data-testid="stSidebarNav"] + div stButton button {{ height: 45px !important; }}
@@ -111,12 +120,6 @@ def save_row(file_path, data_dict):
         clean_dict = {k: str(data_dict.get(k, "")).replace("nan", "").strip() for k in FIELDNAMES}
         writer.writerow(clean_dict)
 
-def update_queue_status(proj_id, status_val):
-    df = load_csv_safe('review_queue.csv')
-    if df.empty: return
-    df.loc[df['Project ID'].astype(str).str.strip() == str(proj_id).strip(), 'Status'] = status_val
-    df.to_csv('review_queue.csv', index=False, encoding='utf-8-sig')
-
 def delete_from_review(proj_id):
     df = load_csv_safe('review_queue.csv')
     if df.empty: return
@@ -169,41 +172,39 @@ with side_col2:
 # 2. HIERARCHY WORKSPACE
 st.subheader("🌳 Grandpa-Daddy-Son Workspace")
 
-# Horizontal Columns for each Family Tree
-cols = st.columns(len(st.session_state.multi_iterations))
+workspace_cols = st.columns(len(st.session_state.multi_iterations))
 
 for i, iteration in enumerate(st.session_state.multi_iterations):
-    with cols[i]:
+    with workspace_cols[i]:
         st.markdown(f"<div class='tree-family-container'>", unsafe_allow_html=True)
         st.markdown(f"<div class='family-header'>FAMILY #{i+1}</div>", unsafe_allow_html=True)
         
-        # 2a. Grandpa (L1) and DYNAMIC PICTURE DISPLAY
+        # CATEGORY IMAGE (Placed at the very top of the container)
+        sel_l1_temp = st.session_state.multi_iterations[i]["l1"]
+        if sel_l1_temp != "--":
+            img_path = TREE_DATA[sel_l1_temp]["image_file"]
+            img_b64 = get_base64_image(img_path)
+            if img_b64:
+                st.markdown(f'<img src="data:image/jpeg;base64,{img_b64}" class="standardized-l1-image">', unsafe_allow_html=True)
+        
+        # Grandpa (L1) Dropdown
         l1_opts = ["--"] + list(TREE_DATA.keys())
         st.session_state.multi_iterations[i]["l1"] = st.selectbox(f"Grandpa (L1)", l1_opts, key=f"l1_{i}_{st.session_state.search_reset_key}")
         
         sel_l1 = st.session_state.multi_iterations[i]["l1"]
-        
         if sel_l1 != "--":
-            # Display the Standardized Image for the Selection
-            img_path = TREE_DATA[sel_l1]["image_file"]
-            img_b64 = get_base64_image(img_path)
-            if img_b64:
-                st.markdown(f'<img src="data:image/jpeg;base64,{img_b64}" class="standardized-l1-image">', unsafe_allow_html=True)
-            
-            # 2b. Daddy (L2) - The subkeys of L1
-            # We must filter out the "image_file" key from the sub-menu options
+            # Daddy (L2) Radio
             daddy_list = [k for k in TREE_DATA[sel_l1].keys() if k != "image_file"]
             l2_opts = ["--"] + list(daddy_list)
             st.session_state.multi_iterations[i]["l2"] = st.radio(f"Daddy (L2) - {sel_l1}", l2_opts, key=f"l2_{i}_{st.session_state.search_reset_key}")
             
             sel_l2 = st.session_state.multi_iterations[i]["l2"]
             if sel_l2 != "--":
-                # 2c. Son (L3) - The value associated with L2 daddy
+                # Son (L3) Radio
                 son_list = TREE_DATA[sel_l1][sel_l2]
                 if son_list:
                     st.session_state.multi_iterations[i]["l3"] = st.radio(f"Son (L3) - {sel_l2}", ["--"] + son_list, key=f"l3_{i}_{st.session_state.search_reset_key}")
                 else:
-                    st.info("End of branch.")
                     st.session_state.multi_iterations[i]["l3"] = "--"
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -217,7 +218,7 @@ if search_mode == "Multi-Action Search" and len(st.session_state.multi_iteration
 
 if len(st.session_state.multi_iterations) > 1:
     if nav2.button("🏁 FINISH", use_container_width=True):
-        st.success("Hierarchy locked. Click 'SEARCH' in the sidebar.")
+        st.success("Hierarchy locked.")
 
 # 3. RESULTS ENGINE
 st.divider()
@@ -229,26 +230,18 @@ if st.session_state.search_clicked or q_search:
 
     if valid_filters:
         def filter_engine(group):
-            # 1. Build project_actions (everything the project actually contains)
             project_actions = set()
             for col in ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
                 vals = group[col].dropna().astype(str).str.strip().unique()
                 project_actions.update([v for v in vals if v and v.lower() != 'nan' and v != "--"])
             
-            # 2. Build search_actions (everything requested in the tree workspace)
             search_actions = set()
             for f in valid_filters:
                 search_actions.add(f['l1'])
                 if f['l2'] != "--": search_actions.add(f['l2'])
                 if f['l3'] != "--": search_actions.add(f['l3'])
             
-            # 3. Apply Unique Strict Logic
-            if unique_strict:
-                # Project contains exactly what was requested, and nothing else
-                return project_actions == search_actions
-            else:
-                # General scope: Requested actions must be a subset of the project
-                return search_actions.issubset(project_actions)
+            return project_actions == search_actions if unique_strict else search_actions.issubset(project_actions)
 
         m_ids = df_raw.groupby('Project ID').filter(filter_engine)['Project ID'].unique()
         df = df_raw[df_raw['Project ID'].isin(m_ids)]
@@ -265,26 +258,24 @@ if st.session_state.search_clicked or q_search:
                 r1 = gp.iloc[0]
                 st.markdown(f"### {r1['Project']}")
                 st.markdown(f"<p class='mono-text'><b>Project ID:</b> {p_id} | <b>Cert Date:</b> {r1.get('Cert Date', r1.get('Cert Year', ''))}</p>", unsafe_allow_html=True)
-                st.markdown("<p class='mono-text'><b>Categorized Actions & Remarks:</b></p>", unsafe_allow_html=True)
                 for _, r in gp.iterrows():
                     l3s = [str(r[c]) for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if str(r[c]).strip() and str(r[c]).lower() != 'nan']
                     chain = f"• {r['Level1']} > {r['Level2']}" + (f" > {', '.join(l3s)}" if l3s else "")
                     st.markdown(f"<p class='mono-text'>{chain}</p>", unsafe_allow_html=True)
                     if str(r.get('Remarks','')).strip() not in ["","nan"]:
                         st.markdown(f"<div class='remarks-box'><b>Remarks:</b> {r['Remarks']}</div>", unsafe_allow_html=True)
-                
                 z_url = str(r1.get('Approval Pack/NOC', '')).strip()
                 if z_url and z_url.lower() != 'nan':
                     st.link_button("ZAP", z_url, use_container_width=True)
 
-# 4. STAGING AREA & ADMIN
+# 4. ADMIN QUEUE (Restored)
 st.divider()
 c1, c2 = st.columns([1, 1.2])
 with c1:
     st.markdown("<p class='small-header'>📩 New Submission</p>", unsafe_allow_html=True)
     with st.form("sub", clear_on_submit=True):
         n_name, n_id = st.text_input("Name"), st.text_input("ID")
-        n_l1 = st.selectbox("L1 Grandma", list(TREE_DATA.keys()))
+        n_l1 = st.selectbox("L1", list(TREE_DATA.keys()))
         if st.form_submit_button("SUBMIT") and n_name:
             save_row('review_queue.csv', {'Level1': n_l1, 'Project': n_name, 'Project ID': n_id, 'Status': 'Pending'})
             st.rerun()
