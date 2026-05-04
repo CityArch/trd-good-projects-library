@@ -32,37 +32,17 @@ st.markdown(f"""
     .mono-text {{ font-family: 'Roboto Mono', monospace; font-size: 0.85rem; color: #94A3B8; margin-bottom: 5px; }}
     .remarks-box {{ background: rgba(56, 189, 248, 0.1); border-left: 3px solid #38BDF8; padding: 10px; border-radius: 4px; font-size: 0.85rem; color: #CBD5E1; margin-top: 5px; }}
     
-    /* Family Tree Selection Container */
-    .tree-family-container {{
-        background: rgba(30, 41, 59, 0.7);
-        border: 2px solid #38BDF8;
-        border-radius: 12px;
-        padding: 20px;
-        min-height: 600px;
-        display: flex;
-        flex-direction: column;
-    }}
-    .family-header {{ 
-        color: #38BDF8; 
-        font-weight: bold; 
-        text-transform: uppercase; 
-        border-bottom: 1px solid #334155; 
-        padding-bottom: 8px; 
-        margin-bottom: 15px; 
-        text-align: center;
-    }}
-    
-    /* Standardized L1 Image Styling - Positioned at top */
+    /* Standardized L1 Image Styling - Now the primary anchor */
     .standardized-l1-image {{
         display: block;
         margin-left: auto;
         margin-right: auto;
-        max-height: 150px;
+        max-height: 180px;
         width: 100%;
         object-fit: cover;
-        border-radius: 8px;
+        border-radius: 12px;
         margin-bottom: 20px;
-        border: 1px solid #334155;
+        border: 1px solid #38BDF8;
     }}
     
     div[data-testid="stSidebarNav"] + div stButton button {{ height: 45px !important; }}
@@ -176,10 +156,7 @@ workspace_cols = st.columns(len(st.session_state.multi_iterations))
 
 for i, iteration in enumerate(st.session_state.multi_iterations):
     with workspace_cols[i]:
-        st.markdown(f"<div class='tree-family-container'>", unsafe_allow_html=True)
-        st.markdown(f"<div class='family-header'>FAMILY #{i+1}</div>", unsafe_allow_html=True)
-        
-        # CATEGORY IMAGE (Placed at the very top of the container)
+        # CATEGORY IMAGE (Placed at the very top of the column)
         sel_l1_temp = st.session_state.multi_iterations[i]["l1"]
         if sel_l1_temp != "--":
             img_path = TREE_DATA[sel_l1_temp]["image_file"]
@@ -206,7 +183,6 @@ for i, iteration in enumerate(st.session_state.multi_iterations):
                     st.session_state.multi_iterations[i]["l3"] = st.radio(f"Son (L3) - {sel_l2}", ["--"] + son_list, key=f"l3_{i}_{st.session_state.search_reset_key}")
                 else:
                     st.session_state.multi_iterations[i]["l3"] = "--"
-        st.markdown("</div>", unsafe_allow_html=True)
 
 # Navigation Buttons
 st.markdown("<br>", unsafe_allow_html=True)
@@ -276,8 +252,14 @@ with c1:
     with st.form("sub", clear_on_submit=True):
         n_name, n_id = st.text_input("Name"), st.text_input("ID")
         n_l1 = st.selectbox("L1", list(TREE_DATA.keys()))
+        n_l2 = st.text_input("L2")
+        n_link = st.text_input("ZAP Link")
+        n_rem = st.text_area("Remarks")
         if st.form_submit_button("SUBMIT") and n_name:
-            save_row('review_queue.csv', {'Level1': n_l1, 'Project': n_name, 'Project ID': n_id, 'Status': 'Pending'})
+            clean_link = n_link.strip()
+            if clean_link and not (clean_link.startswith("http://") or clean_link.startswith("https://")):
+                clean_link = "https://" + clean_link
+            save_row('review_queue.csv', {'Level1': n_l1, 'Level2': n_l2, 'Project': n_name, 'Project ID': n_id, 'Approval Pack/NOC': clean_link, 'Remarks': n_rem, 'Status': 'Pending'})
             st.rerun()
 with c2:
     st.markdown("<p class='small-header'>🕵️ Admin Queue</p>", unsafe_allow_html=True)
