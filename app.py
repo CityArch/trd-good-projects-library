@@ -42,56 +42,51 @@ st.markdown(f"""
         display: flex;
         flex-direction: column;
     }}
-    .family-header {{ 
-        color: #38BDF8; 
-        font-weight: bold; 
-        text-transform: uppercase; 
-        border-bottom: 1px solid #334155; 
-        padding-bottom: 8px; 
-        margin-bottom: 15px; 
-        text-align: center;
+    .family-header {{ color: #38BDF8; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 15px; text-align: center; }}
+    
+    /* Standardized L1 Image Styling */
+    .standardized-l1-image {{
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+        max-height: 120px;
+        width: auto;
+        object-fit: contain;
+        border-radius: 8px;
+        margin-bottom: 15px;
     }}
     
     div[data-testid="stSidebarNav"] + div stButton button {{ height: 45px !important; }}
     </style>
     """, unsafe_allow_html=True)
 
-# --- THE COMPREHENSIVE TREE DATA ---
+# --- TREE STRUCTURE DATA ---
 TREE_DATA = {
     "Use_Waivers": {
-        "Spatially Controlled": [],
-        "ZL-Wide": [],
-        "Streetscape Controls/Location Waivers": []
+        "image_file": "Use_waiver.jpg",
+        "Spatially Controlled": [], "ZL-Wide": [], "Streetscape Controls/Location Waivers": []
     },
     "Bulk_Waivers": {
+        "image_file": "Bulk_waivers.jpg",
         "Height_Setbacks": ["Sky Exposure Plane", "Midtown Daylight Rules", "Height Limit Waivers", "Setback Waivers"],
-        "Yards": [],
-        "Lot Coverage": [],
-        "Street Wall Location": [],
-        "Courts": [],
-        "Floor Area": [],
-        "Tower Rules": [],
-        "Distance Between Buildings & Distance Window - Lot Line": [],
-        "Existing Non-Compliances": []
+        "Yards": [], "Lot Coverage": [], "Street Wall Location": [], "Courts": [], "Floor Area": [],
+        "Tower Rules": [], "Distance Between Buildings & Distance Window - Lot Line": [], "Existing Non-Compliances": []
     },
     "Parking_Curbcuts": {
-        "Manhattan Core": [],
-        "Parking Garages": [],
-        "Required Parking Reductions": [],
-        "Curb-Cuts": []
+        "image_file": "Parking.jpg",
+        "Manhattan Core": [], "Parking Garages": [], "Required Parking Reductions": [], "Curb-Cuts": []
     },
     "Open_Space": {
+        "image_file": "Open Space.jpg",
         "POPs": ["New POPs", "Design change to Existing POPs", "MOD"],
         "Waterfronts": ["WPAA Certifications", "WPAA Certifications with DEC Wetlands", "No-WPAA Certifications", "Zoning Lot Subdivision Certifications"],
         "Open Space Site Plans": []
     },
     "Miscellaneous": {
+        "image_file": "Miscellaneous.jpg",
         "LSGD": ["Single Zoning Lot", "Multi Zoning Lot", "Existing Buildings"],
         "FRESH": ["Fresh Certifications", "Fresh with Authorizations"],
-        "Transit Easement Certs": [],
-        "Houses of Worships": [],
-        "RRROW": [],
-        "Greater East Midtown": []
+        "Transit Easement Certs": [], "Houses of Worships": [], "RRROW": [], "Greater East Midtown": []
     }
 }
 
@@ -150,11 +145,11 @@ df_raw = load_csv_safe('projects.csv')
 
 st.markdown("<div class='hero-section'><h1>🏙️ TRD GOOD PROJECTS LIBRARY</h1><p style='color:#38BDF8;'>NYC ZONING ANALYTICS TERMINAL</p></div>", unsafe_allow_html=True)
 
-# 1. SIDEBAR FILTERS
+# 1. SIDEBAR CONFIG
 st.sidebar.markdown("### 🛠️ CONFIGURATION")
 search_mode = st.sidebar.radio("MODE", ["Single-Action Search", "Multi-Action Search"], key=f"mode_{st.session_state.search_reset_key}")
 
-unique_strict = False
+unique_strict = True 
 if search_mode == "Single-Action Search":
     s_type = st.sidebar.segmented_control("SCOPE", ["General", "Unique"], default="General", key=f"scope_{st.session_state.search_reset_key}")
     unique_strict = (s_type == "Unique")
@@ -171,37 +166,45 @@ with side_col2:
         st.session_state.search_clicked = False
         st.rerun()
 
-# 2. DYNAMIC HIERARCHY WORKSPACE
+# 2. HIERARCHY WORKSPACE
 st.subheader("🌳 Grandpa-Daddy-Son Workspace")
 
-# Horizontal space for Families
-workspace_cols = st.columns(len(st.session_state.multi_iterations))
+# Horizontal Columns for each Family Tree
+cols = st.columns(len(st.session_state.multi_iterations))
 
 for i, iteration in enumerate(st.session_state.multi_iterations):
-    with workspace_cols[i]:
+    with cols[i]:
         st.markdown(f"<div class='tree-family-container'>", unsafe_allow_html=True)
         st.markdown(f"<div class='family-header'>FAMILY #{i+1}</div>", unsafe_allow_html=True)
         
-        # Grandpa (L1)
+        # 2a. Grandpa (L1) and DYNAMIC PICTURE DISPLAY
         l1_opts = ["--"] + list(TREE_DATA.keys())
         st.session_state.multi_iterations[i]["l1"] = st.selectbox(f"Grandpa (L1)", l1_opts, key=f"l1_{i}_{st.session_state.search_reset_key}")
         
         sel_l1 = st.session_state.multi_iterations[i]["l1"]
+        
         if sel_l1 != "--":
-            # Daddy (L2)
-            l2_opts = ["--"] + list(TREE_DATA[sel_l1].keys())
+            # Display the Standardized Image for the Selection
+            img_path = TREE_DATA[sel_l1]["image_file"]
+            img_b64 = get_base64_image(img_path)
+            if img_b64:
+                st.markdown(f'<img src="data:image/jpeg;base64,{img_b64}" class="standardized-l1-image">', unsafe_allow_html=True)
+            
+            # 2b. Daddy (L2) - The subkeys of L1
+            # We must filter out the "image_file" key from the sub-menu options
+            daddy_list = [k for k in TREE_DATA[sel_l1].keys() if k != "image_file"]
+            l2_opts = ["--"] + list(daddy_list)
             st.session_state.multi_iterations[i]["l2"] = st.radio(f"Daddy (L2) - {sel_l1}", l2_opts, key=f"l2_{i}_{st.session_state.search_reset_key}")
             
             sel_l2 = st.session_state.multi_iterations[i]["l2"]
             if sel_l2 != "--":
-                # Son (L3)
-                l3_list = TREE_DATA[sel_l1][sel_l2]
-                if l3_list:
-                    st.session_state.multi_iterations[i]["l3"] = st.radio(f"Son (L3) - {sel_l2}", ["--"] + l3_list, key=f"l3_{i}_{st.session_state.search_reset_key}")
+                # 2c. Son (L3) - The value associated with L2 daddy
+                son_list = TREE_DATA[sel_l1][sel_l2]
+                if son_list:
+                    st.session_state.multi_iterations[i]["l3"] = st.radio(f"Son (L3) - {sel_l2}", ["--"] + son_list, key=f"l3_{i}_{st.session_state.search_reset_key}")
                 else:
-                    st.info("No Son (L3) level for this branch.")
+                    st.info("End of branch.")
                     st.session_state.multi_iterations[i]["l3"] = "--"
-        
         st.markdown("</div>", unsafe_allow_html=True)
 
 # Navigation Buttons
@@ -214,7 +217,7 @@ if search_mode == "Multi-Action Search" and len(st.session_state.multi_iteration
 
 if len(st.session_state.multi_iterations) > 1:
     if nav2.button("🏁 FINISH", use_container_width=True):
-        st.success("Hierarchy finalized. Use the sidebar Search to execute.")
+        st.success("Hierarchy locked. Click 'SEARCH' in the sidebar.")
 
 # 3. RESULTS ENGINE
 st.divider()
@@ -226,22 +229,26 @@ if st.session_state.search_clicked or q_search:
 
     if valid_filters:
         def filter_engine(group):
-            assigned = set()
+            # 1. Build project_actions (everything the project actually contains)
+            project_actions = set()
             for col in ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
                 vals = group[col].dropna().astype(str).str.strip().unique()
-                assigned.update([v for v in vals if v and v.lower() != 'nan'])
+                project_actions.update([v for v in vals if v and v.lower() != 'nan' and v != "--"])
             
-            match = False
+            # 2. Build search_actions (everything requested in the tree workspace)
+            search_actions = set()
             for f in valid_filters:
-                target = {f['l1']}
-                if f['l2'] != "--": target.add(f['l2'])
-                if f['l3'] != "--": target.add(f['l3'])
-                
-                if unique_strict and search_mode == "Single-Action Search":
-                    if assigned == target: match = True
-                elif target.issubset(assigned):
-                    match = True
-            return match
+                search_actions.add(f['l1'])
+                if f['l2'] != "--": search_actions.add(f['l2'])
+                if f['l3'] != "--": search_actions.add(f['l3'])
+            
+            # 3. Apply Unique Strict Logic
+            if unique_strict:
+                # Project contains exactly what was requested, and nothing else
+                return project_actions == search_actions
+            else:
+                # General scope: Requested actions must be a subset of the project
+                return search_actions.issubset(project_actions)
 
         m_ids = df_raw.groupby('Project ID').filter(filter_engine)['Project ID'].unique()
         df = df_raw[df_raw['Project ID'].isin(m_ids)]
@@ -270,29 +277,17 @@ if st.session_state.search_clicked or q_search:
                 if z_url and z_url.lower() != 'nan':
                     st.link_button("ZAP", z_url, use_container_width=True)
 
-# 4. ADMIN & STAGING
+# 4. STAGING AREA & ADMIN
 st.divider()
 c1, c2 = st.columns([1, 1.2])
 with c1:
     st.markdown("<p class='small-header'>📩 New Submission</p>", unsafe_allow_html=True)
     with st.form("sub", clear_on_submit=True):
-        n_name = st.text_input("Name")
-        n_id = st.text_input("ID")
-        n_l1 = st.selectbox("L1", list(TREE_DATA.keys()))
-        n_l2 = st.text_input("L2")
-        n_l3 = st.text_input("L3")
-        n_zap = st.text_input("ZAP Link")
-        n_rem = st.text_area("Remarks")
-        if st.form_submit_button("SUBMIT"):
-            clean_link = n_zap.strip()
-            if clean_link and not clean_link.startswith("http"): clean_link = "https://" + clean_link
-            save_row('review_queue.csv', {
-                'Level1': n_l1, 'Level2': n_l2, 'Level3-1': n_l3, 
-                'Project': n_name, 'Project ID': n_id, 'Approval Pack/NOC': clean_link, 
-                'Remarks': n_rem, 'Status': 'Pending'
-            })
+        n_name, n_id = st.text_input("Name"), st.text_input("ID")
+        n_l1 = st.selectbox("L1 Grandma", list(TREE_DATA.keys()))
+        if st.form_submit_button("SUBMIT") and n_name:
+            save_row('review_queue.csv', {'Level1': n_l1, 'Project': n_name, 'Project ID': n_id, 'Status': 'Pending'})
             st.rerun()
-
 with c2:
     st.markdown("<p class='small-header'>🕵️ Admin Queue</p>", unsafe_allow_html=True)
     q_df = load_csv_safe('review_queue.csv')
@@ -300,6 +295,5 @@ with c2:
         for i, row in q_df.iterrows():
             with st.container(border=True):
                 st.write(f"**{row['Project']}** (ID: {row['Project ID']})")
-                st.write(f"Actions: {row['Level1']} > {row['Level2']}")
                 if st.button("🗑️", key=f"del_{i}"):
                     delete_from_review(row['Project ID']); st.rerun()
