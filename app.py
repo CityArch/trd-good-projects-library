@@ -32,12 +32,12 @@ st.markdown(f"""
     .mono-text {{ font-family: 'Roboto Mono', monospace; font-size: 0.85rem; color: #94A3B8; margin-bottom: 5px; }}
     .remarks-box {{ background: rgba(56, 189, 248, 0.1); border-left: 3px solid #38BDF8; padding: 10px; border-radius: 4px; font-size: 0.85rem; color: #CBD5E1; margin-top: 5px; }}
     
-    /* Standardized L1 Image Styling - 100% Bigger and Centered */
+    /* Standardized L1 Image Styling - Centered */
     .standardized-l1-image {{
         display: block;
         margin-left: auto;
         margin-right: auto;
-        max-height: 300px; /* Increased by 100% from previous 150px */
+        max-height: 300px;
         width: 100%;
         object-fit: contain;
         border-radius: 12px;
@@ -45,7 +45,7 @@ st.markdown(f"""
         border: 2px solid #38BDF8;
     }}
     
-    /* Center the Grandpa Selection text */
+    /* Center selectbox labels */
     .stSelectbox label {{ text-align: center; display: block; }}
     
     div[data-testid="stSidebarNav"] + div stButton button {{ height: 45px !important; }}
@@ -152,14 +152,14 @@ with side_col2:
         st.session_state.search_clicked = False
         st.rerun()
 
-# 2. HIERARCHY WORKSPACE
-st.subheader("🌳 Grandpa-Daddy-Son Workspace")
+# 2. PROJECT SEARCH FILTER WORKSPACE
+st.subheader("🌳 Project Search Filter")
 
 workspace_cols = st.columns(len(st.session_state.multi_iterations))
 
 for i, iteration in enumerate(st.session_state.multi_iterations):
     with workspace_cols[i]:
-        # CATEGORY IMAGE (Centered and Large)
+        # CATEGORY IMAGE
         sel_l1_temp = st.session_state.multi_iterations[i]["l1"]
         if sel_l1_temp != "--":
             img_path = TREE_DATA[sel_l1_temp]["image_file"]
@@ -167,30 +167,29 @@ for i, iteration in enumerate(st.session_state.multi_iterations):
             if img_b64:
                 st.markdown(f'<img src="data:image/jpeg;base64,{img_b64}" class="standardized-l1-image">', unsafe_allow_html=True)
         else:
-            # Placeholder to maintain spacing
             st.markdown("<div style='height:300px;'></div>", unsafe_allow_html=True)
         
-        # Grandpa (L1) Dropdown
+        # L1 Selection
         l1_opts = ["--"] + list(TREE_DATA.keys())
-        st.session_state.multi_iterations[i]["l1"] = st.selectbox(f"Grandpa (L1)", l1_opts, key=f"l1_{i}_{st.session_state.search_reset_key}")
+        st.session_state.multi_iterations[i]["l1"] = st.selectbox(f"L1 Selection", l1_opts, key=f"l1_{i}_{st.session_state.search_reset_key}")
         
         sel_l1 = st.session_state.multi_iterations[i]["l1"]
         if sel_l1 != "--":
-            # Daddy (L2) Radio
+            # L2 Selection
             daddy_list = [k for k in TREE_DATA[sel_l1].keys() if k != "image_file"]
             l2_opts = ["--"] + list(daddy_list)
-            st.session_state.multi_iterations[i]["l2"] = st.radio(f"Daddy (L2) - {sel_l1}", l2_opts, key=f"l2_{i}_{st.session_state.search_reset_key}")
+            st.session_state.multi_iterations[i]["l2"] = st.radio(f"L2 - {sel_l1}", l2_opts, key=f"l2_{i}_{st.session_state.search_reset_key}")
             
             sel_l2 = st.session_state.multi_iterations[i]["l2"]
             if sel_l2 != "--":
-                # Son (L3) Radio
+                # L3 Selection
                 son_list = TREE_DATA[sel_l1][sel_l2]
                 if son_list:
-                    st.session_state.multi_iterations[i]["l3"] = st.radio(f"Son (L3) - {sel_l2}", ["--"] + son_list, key=f"l3_{i}_{st.session_state.search_reset_key}")
+                    st.session_state.multi_iterations[i]["l3"] = st.radio(f"L3 - {sel_l2}", ["--"] + son_list, key=f"l3_{i}_{st.session_state.search_reset_key}")
                 else:
                     st.session_state.multi_iterations[i]["l3"] = "--"
 
-# Navigation Buttons
+# Navigation
 st.markdown("<br>", unsafe_allow_html=True)
 nav1, nav2, _ = st.columns([0.15, 0.15, 0.7])
 if search_mode == "Multi-Action Search" and len(st.session_state.multi_iterations) < 5:
@@ -200,7 +199,7 @@ if search_mode == "Multi-Action Search" and len(st.session_state.multi_iteration
 
 if len(st.session_state.multi_iterations) > 1:
     if nav2.button("🏁 FINISH", use_container_width=True):
-        st.success("Hierarchy locked.")
+        st.success("Search Filter locked.")
 
 # 3. RESULTS ENGINE
 st.divider()
@@ -257,15 +256,12 @@ with c1:
     st.markdown("<p class='small-header'>📩 New Submission</p>", unsafe_allow_html=True)
     with st.form("sub", clear_on_submit=True):
         n_name, n_id = st.text_input("Name"), st.text_input("ID")
-        n_l1 = st.selectbox("L1", list(TREE_DATA.keys()))
-        n_l2 = st.text_input("L2")
+        n_l1 = st.selectbox("L1 Selection", list(TREE_DATA.keys()))
         n_zap = st.text_input("ZAP Link")
-        n_rem = st.text_area("Remarks")
         if st.form_submit_button("SUBMIT") and n_name:
             clean_link = n_zap.strip()
-            if clean_link and not (clean_link.startswith("http://") or clean_link.startswith("https://")):
-                clean_link = "https://" + clean_link
-            save_row('review_queue.csv', {'Level1': n_l1, 'Level2': n_l2, 'Project': n_name, 'Project ID': n_id, 'Approval Pack/NOC': clean_link, 'Remarks': n_rem, 'Status': 'Pending'})
+            if clean_link and not clean_link.startswith("http"): clean_link = "https://" + clean_link
+            save_row('review_queue.csv', {'Level1': n_l1, 'Project': n_name, 'Project ID': n_id, 'Approval Pack/NOC': clean_link, 'Status': 'Pending'})
             st.rerun()
 with c2:
     st.markdown("<p class='small-header'>🕵️ Admin Queue</p>", unsafe_allow_html=True)
