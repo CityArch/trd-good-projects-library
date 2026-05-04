@@ -32,18 +32,21 @@ st.markdown(f"""
     .mono-text {{ font-family: 'Roboto Mono', monospace; font-size: 0.85rem; color: #94A3B8; margin-bottom: 5px; }}
     .remarks-box {{ background: rgba(56, 189, 248, 0.1); border-left: 3px solid #38BDF8; padding: 10px; border-radius: 4px; font-size: 0.85rem; color: #CBD5E1; margin-top: 5px; }}
     
-    /* Standardized L1 Image Styling - Now the primary anchor */
+    /* Standardized L1 Image Styling - 100% Bigger and Centered */
     .standardized-l1-image {{
         display: block;
         margin-left: auto;
         margin-right: auto;
-        max-height: 180px;
+        max-height: 300px; /* Increased by 100% from previous 150px */
         width: 100%;
-        object-fit: cover;
+        object-fit: contain;
         border-radius: 12px;
-        margin-bottom: 20px;
-        border: 1px solid #38BDF8;
+        margin-bottom: 25px;
+        border: 2px solid #38BDF8;
     }}
+    
+    /* Center the Grandpa Selection text */
+    .stSelectbox label {{ text-align: center; display: block; }}
     
     div[data-testid="stSidebarNav"] + div stButton button {{ height: 45px !important; }}
     </style>
@@ -156,13 +159,16 @@ workspace_cols = st.columns(len(st.session_state.multi_iterations))
 
 for i, iteration in enumerate(st.session_state.multi_iterations):
     with workspace_cols[i]:
-        # CATEGORY IMAGE (Placed at the very top of the column)
+        # CATEGORY IMAGE (Centered and Large)
         sel_l1_temp = st.session_state.multi_iterations[i]["l1"]
         if sel_l1_temp != "--":
             img_path = TREE_DATA[sel_l1_temp]["image_file"]
             img_b64 = get_base64_image(img_path)
             if img_b64:
                 st.markdown(f'<img src="data:image/jpeg;base64,{img_b64}" class="standardized-l1-image">', unsafe_allow_html=True)
+        else:
+            # Placeholder to maintain spacing
+            st.markdown("<div style='height:300px;'></div>", unsafe_allow_html=True)
         
         # Grandpa (L1) Dropdown
         l1_opts = ["--"] + list(TREE_DATA.keys())
@@ -244,7 +250,7 @@ if st.session_state.search_clicked or q_search:
                 if z_url and z_url.lower() != 'nan':
                     st.link_button("ZAP", z_url, use_container_width=True)
 
-# 4. ADMIN QUEUE (Restored)
+# 4. ADMIN & STAGING
 st.divider()
 c1, c2 = st.columns([1, 1.2])
 with c1:
@@ -253,10 +259,10 @@ with c1:
         n_name, n_id = st.text_input("Name"), st.text_input("ID")
         n_l1 = st.selectbox("L1", list(TREE_DATA.keys()))
         n_l2 = st.text_input("L2")
-        n_link = st.text_input("ZAP Link")
+        n_zap = st.text_input("ZAP Link")
         n_rem = st.text_area("Remarks")
         if st.form_submit_button("SUBMIT") and n_name:
-            clean_link = n_link.strip()
+            clean_link = n_zap.strip()
             if clean_link and not (clean_link.startswith("http://") or clean_link.startswith("https://")):
                 clean_link = "https://" + clean_link
             save_row('review_queue.csv', {'Level1': n_l1, 'Level2': n_l2, 'Project': n_name, 'Project ID': n_id, 'Approval Pack/NOC': clean_link, 'Remarks': n_rem, 'Status': 'Pending'})
