@@ -71,7 +71,8 @@ def load_csv_safe(file_path):
         try: df = pd.read_csv(file_path, encoding='cp1252')
         except: return pd.DataFrame()
     df.columns = [str(c).strip() for c in df.columns]
-    return df.fillna("").applymap(lambda x: str(x).strip())
+    # FIX: applymap() replaced with map() for compatibility with Pandas 2.1+
+    return df.fillna("").map(lambda x: str(x).strip())
 
 # --- INITIALIZE STATE ---
 if "search_reset_key" not in st.session_state: st.session_state.search_reset_key = 0
@@ -130,7 +131,7 @@ for i, iteration in enumerate(st.session_state.multi_iterations):
                     st.session_state.multi_iterations[i]["l3"] = st.radio(f"L3 - {cur_l2}", ["--"] + son_list, key=f"l3_{i}_{st.session_state.search_reset_key}")
                 else: st.session_state.multi_iterations[i]["l3"] = "--"
 
-# 3. RESULTS ENGINE (FLATTENED LOGIC)
+# 3. RESULTS ENGINE
 st.divider()
 q_search = st.text_input("📝 KEYWORD SEARCH", placeholder="Search project name or ID...", key=f"q_{st.session_state.search_reset_key}")
 
@@ -140,7 +141,6 @@ if st.session_state.search_clicked or q_search:
 
     if valid_filters:
         def filter_engine(group):
-            # Flatten all non-empty values from the project into ONE set
             cols_to_check = ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
             project_values = set()
             for col in cols_to_check:
@@ -149,17 +149,11 @@ if st.session_state.search_clicked or q_search:
                     if v and v.lower() not in ["", "nan", "--"]:
                         project_values.add(v.lower())
             
-            # Flatten all search selections into ONE set
             search_values = set()
             for f in valid_filters:
                 search_values.add(f['l1'].lower())
                 if f['l2'] != "--": search_values.add(f['l2'].lower())
-                if f['l3'] != "--": search_actions.add(f['l3'].lower())
-            
-            # Logic: If I search for Bulk_Waivers > Height_Setbacks > Sky Exposure Plane,
-            # that's 3 unique values. 
-            # If the project HAS those 3, it matches General.
-            # If the project has ONLY those 3, it matches Unique.
+                if f['l3'] != "--": search_values.add(f['l3'].lower())
             
             is_match = search_values.issubset(project_values)
             if not is_match: return False
