@@ -36,8 +36,6 @@ st.markdown(f"""
         max-height: 300px; width: 100%; object-fit: contain;
         border-radius: 12px; margin-bottom: 25px; border: 2px solid #38BDF8;
     }}
-    .stSelectbox label {{ text-align: center; display: block; }}
-    div[data-testid="stSidebarNav"] + div stButton button {{ height: 45px !important; }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -72,10 +70,8 @@ def load_csv_safe(file_path):
     except:
         try: df = pd.read_csv(file_path, encoding='cp1252')
         except: return pd.DataFrame()
-    df.columns = [str(c).strip().replace('ï»¿', '') for c in df.columns]
-    for col in df.columns:
-        df[col] = df[col].astype(str).str.strip()
-    return df.replace("nan", "")
+    df.columns = [str(c).strip() for c in df.columns]
+    return df.fillna("").applymap(lambda x: str(x).strip())
 
 # --- INITIALIZE STATE ---
 if "search_reset_key" not in st.session_state: st.session_state.search_reset_key = 0
@@ -114,27 +110,27 @@ workspace_cols = st.columns(len(st.session_state.multi_iterations))
 
 for i, iteration in enumerate(st.session_state.multi_iterations):
     with workspace_cols[i]:
-        sel_l1_temp = st.session_state.multi_iterations[i]["l1"]
-        if sel_l1_temp != "--":
-            img_b64 = get_base64_image(TREE_DATA[sel_l1_temp]["image_file"])
+        sel_l1 = st.session_state.multi_iterations[i]["l1"]
+        if sel_l1 != "--":
+            img_b64 = get_base64_image(TREE_DATA[sel_l1]["image_file"])
             if img_b64: st.markdown(f'<img src="data:image/jpeg;base64,{img_b64}" class="standardized-l1-image">', unsafe_allow_html=True)
         else: st.markdown("<div style='height:300px;'></div>", unsafe_allow_html=True)
         
         st.session_state.multi_iterations[i]["l1"] = st.selectbox(f"L1 Selection", ["--"] + list(TREE_DATA.keys()), key=f"l1_{i}_{st.session_state.search_reset_key}")
         
-        sel_l1 = st.session_state.multi_iterations[i]["l1"]
-        if sel_l1 != "--":
-            daddy_list = [k for k in TREE_DATA[sel_l1].keys() if k != "image_file"]
-            st.session_state.multi_iterations[i]["l2"] = st.radio(f"L2 - {sel_l1}", ["--"] + daddy_list, key=f"l2_{i}_{st.session_state.search_reset_key}")
+        cur_l1 = st.session_state.multi_iterations[i]["l1"]
+        if cur_l1 != "--":
+            daddy_list = [k for k in TREE_DATA[cur_l1].keys() if k != "image_file"]
+            st.session_state.multi_iterations[i]["l2"] = st.radio(f"L2 - {cur_l1}", ["--"] + daddy_list, key=f"l2_{i}_{st.session_state.search_reset_key}")
             
-            sel_l2 = st.session_state.multi_iterations[i]["l2"]
-            if sel_l2 != "--":
-                son_list = TREE_DATA[sel_l1][sel_l2]
+            cur_l2 = st.session_state.multi_iterations[i]["l2"]
+            if cur_l2 != "--":
+                son_list = TREE_DATA[cur_l1][cur_l2]
                 if son_list:
-                    st.session_state.multi_iterations[i]["l3"] = st.radio(f"L3 - {sel_l2}", ["--"] + son_list, key=f"l3_{i}_{st.session_state.search_reset_key}")
+                    st.session_state.multi_iterations[i]["l3"] = st.radio(f"L3 - {cur_l2}", ["--"] + son_list, key=f"l3_{i}_{st.session_state.search_reset_key}")
                 else: st.session_state.multi_iterations[i]["l3"] = "--"
 
-# 3. RESULTS ENGINE
+# 3. RESULTS ENGINE (FLATTENED LOGIC)
 st.divider()
 q_search = st.text_input("📝 KEYWORD SEARCH", placeholder="Search project name or ID...", key=f"q_{st.session_state.search_reset_key}")
 
@@ -144,36 +140,32 @@ if st.session_state.search_clicked or q_search:
 
     if valid_filters:
         def filter_engine(group):
-            # 1. Gather all action chains present in the project rows
-            project_chains = []
-            for _, row in group.iterrows():
-                l1, l2 = row['Level1'], row['Level2']
-                l3s = [row[c] for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if row[c] and row[c] != ""]
-                if not l3s:
-                    project_chains.append({l1, l2})
-                else:
-                    for l3 in l3s:
-                        project_chains.append({l1, l2, l3})
+            # Flatten all non-empty values from the project into ONE set
+            cols_to_check = ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
+            project_values = set()
+            for col in cols_to_check:
+                for val in group[col].unique():
+                    v = str(val).strip()
+                    if v and v.lower() not in ["", "nan", "--"]:
+                        project_values.add(v.lower())
             
-            # 2. Build the search target chains
-            search_targets = []
+            # Flatten all search selections into ONE set
+            search_values = set()
             for f in valid_filters:
-                t = {f['l1']}
-                if f['l2'] != "--": t.add(f['l2'])
-                if f['l3'] != "--": t.add(f['l3'])
-                search_targets.append(t)
+                search_values.add(f['l1'].lower())
+                if f['l2'] != "--": search_values.add(f['l2'].lower())
+                if f['l3'] != "--": search_actions.add(f['l3'].lower())
             
-            # 3. Match logic
-            # General: Every search target must be present in project_chains
-            found_all_targets = all(any(target.issubset(p_chain) for p_chain in project_chains) for target in search_targets)
+            # Logic: If I search for Bulk_Waivers > Height_Setbacks > Sky Exposure Plane,
+            # that's 3 unique values. 
+            # If the project HAS those 3, it matches General.
+            # If the project has ONLY those 3, it matches Unique.
             
-            if not found_all_targets: return False
+            is_match = search_values.issubset(project_values)
+            if not is_match: return False
             
-            # Unique: Project must NOT have any chains that weren't in the search targets
             if unique_strict:
-                for p_chain in project_chains:
-                    if not any(p_chain.issubset(target) or target.issubset(p_chain) for target in search_targets):
-                        return False
+                return len(project_values) == len(search_values)
             return True
 
         m_ids = df_raw.groupby('Project ID').filter(filter_engine)['Project ID'].unique()
@@ -191,7 +183,7 @@ if st.session_state.search_clicked or q_search:
                 st.markdown(f"### {r1['Project']}")
                 st.markdown(f"<p class='mono-text'><b>ID:</b> {p_id} | <b>Date:</b> {r1.get('Cert Date', '')}</p>", unsafe_allow_html=True)
                 for _, r in gp.iterrows():
-                    l3s = [str(r[c]) for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if str(r[c]).strip() and str(r[c]).lower() != 'nan']
+                    l3s = [str(r[c]) for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if str(r[c]).strip() and str(r[c]).lower() not in ["", "nan"]]
                     st.markdown(f"<p class='mono-text'>• {r['Level1']} > {r['Level2']}" + (f" > {', '.join(l3s)}" if l3s else "") + "</p>", unsafe_allow_html=True)
                 z_url = str(r1.get('Approval Pack/NOC', '')).strip()
                 if z_url and z_url.lower() != 'nan': st.link_button("ZAP", z_url, use_container_width=True)
