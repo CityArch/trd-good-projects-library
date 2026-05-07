@@ -62,7 +62,7 @@ TREE_DATA = {
     "Open_Space": {
         "image_file": "Open Space.jpg",
         "POPs": ["New POPs", "Design change to Existing POPs", "MOD"],
-        "Waterfronts": ["WPAA Certifications", "WPAA Certifications with DEC Wetlands", "No-WPAA Certifications", "Zoning Lot Subdivision Certifications"],
+        "Waterfronts": ["WPAA Certification", "WPAA Certification with DEC Wetlands", "No-WPAA Certification", "Zoning Lot Subdivision Certifications"],
         "Open Space Site Plans": []
     },
     "Miscellaneous": {
@@ -161,7 +161,7 @@ for i, iteration in enumerate(st.session_state.multi_iterations):
                     st.session_state.multi_iterations[i]["l3"] = st.radio(f"L3 - {cur_l2}", ["--"] + son_list, key=f"l3_{i}_{st.session_state.search_reset_key}")
                 else: st.session_state.multi_iterations[i]["l3"] = "--"
 
-# --- REINSTATED NAVIGATION BUTTONS ---
+# Navigation
 st.markdown("<br>", unsafe_allow_html=True)
 nav1, nav2, _ = st.columns([0.15, 0.15, 0.7])
 if search_mode == "Multi-Action Search" and len(st.session_state.multi_iterations) < 5:
