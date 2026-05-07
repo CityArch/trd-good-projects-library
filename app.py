@@ -30,12 +30,21 @@ st.markdown(f"""
         text-align: center; margin-bottom: 30px;
     }}
     .mono-text {{ font-family: 'Roboto Mono', monospace; font-size: 0.85rem; color: #94A3B8; margin-bottom: 5px; }}
-    .remarks-box {{ background: rgba(56, 189, 248, 0.1); border-left: 3px solid #38BDF8; padding: 10px; border-radius: 4px; font-size: 0.85rem; color: #CBD5E1; margin-top: 5px; }}
+    .remarks-box {{ 
+        background: rgba(56, 189, 248, 0.1); 
+        border-left: 3px solid #38BDF8; 
+        padding: 12px; 
+        border-radius: 4px; 
+        font-size: 0.85rem; 
+        color: #CBD5E1; 
+        margin: 8px 0 15px 15px; 
+    }}
     .standardized-l1-image {{
         display: block; margin-left: auto; margin-right: auto;
         max-height: 300px; width: 100%; object-fit: contain;
         border-radius: 12px; margin-bottom: 25px; border: 2px solid #38BDF8;
     }}
+    div[data-testid="stSidebarNav"] + div stButton button {{ height: 45px !important; }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -71,7 +80,6 @@ def load_csv_safe(file_path):
         try: df = pd.read_csv(file_path, encoding='cp1252')
         except: return pd.DataFrame()
     df.columns = [str(c).strip() for c in df.columns]
-    # FIX: applymap() replaced with map() for compatibility with Pandas 2.1+
     return df.fillna("").map(lambda x: str(x).strip())
 
 # --- INITIALIZE STATE ---
@@ -157,9 +165,7 @@ if st.session_state.search_clicked or q_search:
             
             is_match = search_values.issubset(project_values)
             if not is_match: return False
-            
-            if unique_strict:
-                return len(project_values) == len(search_values)
+            if unique_strict: return len(project_values) == len(search_values)
             return True
 
         m_ids = df_raw.groupby('Project ID').filter(filter_engine)['Project ID'].unique()
@@ -176,8 +182,12 @@ if st.session_state.search_clicked or q_search:
                 r1 = gp.iloc[0]
                 st.markdown(f"### {r1['Project']}")
                 st.markdown(f"<p class='mono-text'><b>ID:</b> {p_id} | <b>Date:</b> {r1.get('Cert Date', '')}</p>", unsafe_allow_html=True)
+                
+                # Render each action row and its specific remarks immediately after
                 for _, r in gp.iterrows():
                     l3s = [str(r[c]) for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if str(r[c]).strip() and str(r[c]).lower() not in ["", "nan"]]
-                    st.markdown(f"<p class='mono-text'>• {r['Level1']} > {r['Level2']}" + (f" > {', '.join(l3s)}" if l3s else "") + "</p>", unsafe_allow_html=True)
-                z_url = str(r1.get('Approval Pack/NOC', '')).strip()
-                if z_url and z_url.lower() != 'nan': st.link_button("ZAP", z_url, use_container_width=True)
+                    chain = f"• {r['Level1']} > {r['Level2']}" + (f" > {', '.join(l3s)}" if l3s else "")
+                    st.markdown(f"<p class='mono-text'>{chain}</p>", unsafe_allow_html=True)
+                    
+                    # Remarks pinned to this specific action chain
+                    rem = str(r.get('Remarks', '')).strip
