@@ -41,7 +41,7 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-# --- TREE DATA ---
+# --- TREE STRUCTURE DATA ---
 TREE_DATA = {
     "Use_Waivers": {"image_file": "Use_waiver.jpg", "Spatially Controlled": [], "ZL-Wide": [], "Streetscape Controls/Location Waivers": []},
     "Bulk_Waivers": {
@@ -65,7 +65,6 @@ TREE_DATA = {
     }
 }
 
-# --- DATA HELPERS ---
 def load_csv_safe(file_path):
     if not os.path.exists(file_path): return pd.DataFrame()
     try:
@@ -145,27 +144,36 @@ if st.session_state.search_clicked or q_search:
 
     if valid_filters:
         def filter_engine(group):
-            # Normalizing data to handle singular/plural and case issues
-            project_actions = set()
-            for col in ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
-                val = str(group[col].iloc[0]).strip().lower()
-                if val and val != "" and val != "--": project_actions.add(val)
+            # 1. Gather all action chains present in the project rows
+            project_chains = []
+            for _, row in group.iterrows():
+                l1, l2 = row['Level1'], row['Level2']
+                l3s = [row[c] for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if row[c] and row[c] != ""]
+                if not l3s:
+                    project_chains.append({l1, l2})
+                else:
+                    for l3 in l3s:
+                        project_chains.append({l1, l2, l3})
             
-            search_actions = set()
+            # 2. Build the search target chains
+            search_targets = []
             for f in valid_filters:
-                search_actions.add(f['l1'].lower())
-                if f['l2'] != "--": search_actions.add(f['l2'].lower())
-                if f['l3'] != "--": search_actions.add(f['l3'].lower())
+                t = {f['l1']}
+                if f['l2'] != "--": t.add(f['l2'])
+                if f['l3'] != "--": t.add(f['l3'])
+                search_targets.append(t)
             
-            # General Match: Search actions must exist in the project
-            # Using fuzzy check to handle the singular/plural handshaking
-            for s_act in search_actions:
-                match = any(s_act in p_act or p_act in s_act for p_act in project_actions)
-                if not match: return False
+            # 3. Match logic
+            # General: Every search target must be present in project_chains
+            found_all_targets = all(any(target.issubset(p_chain) for p_chain in project_chains) for target in search_targets)
             
-            # Strict Unique Match: Search actions must exactly equal Project actions
+            if not found_all_targets: return False
+            
+            # Unique: Project must NOT have any chains that weren't in the search targets
             if unique_strict:
-                return len(project_actions) == len(search_actions)
+                for p_chain in project_chains:
+                    if not any(p_chain.issubset(target) or target.issubset(p_chain) for target in search_targets):
+                        return False
             return True
 
         m_ids = df_raw.groupby('Project ID').filter(filter_engine)['Project ID'].unique()
@@ -181,13 +189,9 @@ if st.session_state.search_clicked or q_search:
             with st.container(border=True):
                 r1 = gp.iloc[0]
                 st.markdown(f"### {r1['Project']}")
-                st.markdown(f"<p class='mono-text'><b>Project ID:</b> {p_id} | <b>Cert Date:</b> {r1.get('Cert Date', r1.get('Cert Year', ''))}</p>", unsafe_allow_html=True)
+                st.markdown(f"<p class='mono-text'><b>ID:</b> {p_id} | <b>Date:</b> {r1.get('Cert Date', '')}</p>", unsafe_allow_html=True)
                 for _, r in gp.iterrows():
                     l3s = [str(r[c]) for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if str(r[c]).strip() and str(r[c]).lower() != 'nan']
-                    chain = f"• {r['Level1']} > {r['Level2']}" + (f" > {', '.join(l3s)}" if l3s else "")
-                    st.markdown(f"<p class='mono-text'>{chain}</p>", unsafe_allow_html=True)
-                    if str(r.get('Remarks','')).strip() not in ["","nan"]:
-                        st.markdown(f"<div class='remarks-box'><b>Remarks:</b> {r['Remarks']}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<p class='mono-text'>• {r['Level1']} > {r['Level2']}" + (f" > {', '.join(l3s)}" if l3s else "") + "</p>", unsafe_allow_html=True)
                 z_url = str(r1.get('Approval Pack/NOC', '')).strip()
-                if z_url and z_url.lower() != 'nan':
-                    st.link_button("ZAP", z_url, use_container_width=True)
+                if z_url and z_url.lower() != 'nan': st.link_button("ZAP", z_url, use_container_width=True)
