@@ -41,22 +41,16 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-# --- TREE STRUCTURE DATA (CORRECTED LABELS) ---
+# --- TREE DATA ---
 TREE_DATA = {
-    "Use_Waivers": {
-        "image_file": "Use_waiver.jpg",
-        "Spatially Controlled": [], "ZL-Wide": [], "Streetscape Controls/Location Waivers": []
-    },
+    "Use_Waivers": {"image_file": "Use_waiver.jpg", "Spatially Controlled": [], "ZL-Wide": [], "Streetscape Controls/Location Waivers": []},
     "Bulk_Waivers": {
         "image_file": "Bulk_waivers.jpg",
         "Height_Setbacks": ["Sky Exposure Plane", "Midtown Daylight Rules", "Height Limit Waivers", "Setback Waivers"],
         "Yards": [], "Lot Coverage": [], "Street Wall Location": [], "Courts": [], "Floor Area": [],
         "Tower Rules": [], "Distance Between Buildings & Distance Window - Lot Line": [], "Existing Non-Compliances": []
     },
-    "Parking_Curbcuts": {
-        "image_file": "Parking.jpg",
-        "Manhattan Core": [], "Parking Garages": [], "Required Parking Reductions": [], "Curb-Cuts": []
-    },
+    "Parking_Curbcuts": {"image_file": "Parking.jpg", "Manhattan Core": [], "Parking Garages": [], "Required Parking Reductions": [], "Curb-Cuts": []},
     "Open_Space": {
         "image_file": "Open Space.jpg",
         "POPs": ["New POPs", "Design change to Existing POPs", "MOD"],
@@ -66,7 +60,7 @@ TREE_DATA = {
     "Miscellaneous": {
         "image_file": "Miscellaneous.jpg",
         "LSGD": ["Single Zoning Lot", "Multi Zoning Lot", "Existing Buildings"],
-        "FRESH": ["Fresh Certification", "Fresh with Authorization"], # Fixed: Dropped plural 's'
+        "FRESH": ["Fresh Certification", "Fresh with Authorization"],
         "Transit Easement Certs": [], "Houses of Worships": [], "RRROW": [], "Greater East Midtown": []
     }
 }
@@ -93,14 +87,15 @@ df_raw = load_csv_safe('projects.csv')
 
 st.markdown("<div class='hero-section'><h1>🏙️ TRD GOOD PROJECTS LIBRARY</h1><p style='color:#38BDF8;'>NYC ZONING ANALYTICS TERMINAL</p></div>", unsafe_allow_html=True)
 
-# 1. SIDEBAR CONFIG
+# 1. SIDEBAR
 st.sidebar.markdown("### 🛠️ CONFIGURATION")
 search_mode = st.sidebar.radio("MODE", ["Single-Action Search", "Multi-Action Search"], key=f"mode_{st.session_state.search_reset_key}")
 
-unique_strict = True 
 if search_mode == "Single-Action Search":
     s_type = st.sidebar.segmented_control("SCOPE", ["General", "Unique"], default="General", key=f"scope_{st.session_state.search_reset_key}")
     unique_strict = (s_type == "Unique")
+else:
+    unique_strict = True 
 
 st.sidebar.markdown("---")
 side_col1, side_col2 = st.sidebar.columns(2)
@@ -114,7 +109,7 @@ with side_col2:
         st.session_state.search_clicked = False
         st.rerun()
 
-# 2. PROJECT SEARCH FILTER WORKSPACE
+# 2. WORKSPACE
 st.subheader("🌳 Project Search Filter")
 workspace_cols = st.columns(len(st.session_state.multi_iterations))
 
@@ -123,10 +118,8 @@ for i, iteration in enumerate(st.session_state.multi_iterations):
         sel_l1_temp = st.session_state.multi_iterations[i]["l1"]
         if sel_l1_temp != "--":
             img_b64 = get_base64_image(TREE_DATA[sel_l1_temp]["image_file"])
-            if img_b64:
-                st.markdown(f'<img src="data:image/jpeg;base64,{img_b64}" class="standardized-l1-image">', unsafe_allow_html=True)
-        else:
-            st.markdown("<div style='height:300px;'></div>", unsafe_allow_html=True)
+            if img_b64: st.markdown(f'<img src="data:image/jpeg;base64,{img_b64}" class="standardized-l1-image">', unsafe_allow_html=True)
+        else: st.markdown("<div style='height:300px;'></div>", unsafe_allow_html=True)
         
         st.session_state.multi_iterations[i]["l1"] = st.selectbox(f"L1 Selection", ["--"] + list(TREE_DATA.keys()), key=f"l1_{i}_{st.session_state.search_reset_key}")
         
@@ -140,16 +133,7 @@ for i, iteration in enumerate(st.session_state.multi_iterations):
                 son_list = TREE_DATA[sel_l1][sel_l2]
                 if son_list:
                     st.session_state.multi_iterations[i]["l3"] = st.radio(f"L3 - {sel_l2}", ["--"] + son_list, key=f"l3_{i}_{st.session_state.search_reset_key}")
-                else:
-                    st.session_state.multi_iterations[i]["l3"] = "--"
-
-# Navigation
-st.markdown("<br>", unsafe_allow_html=True)
-nav1, nav2, _ = st.columns([0.15, 0.15, 0.7])
-if search_mode == "Multi-Action Search" and len(st.session_state.multi_iterations) < 5:
-    if nav1.button("➕ CONTINUE", use_container_width=True):
-        st.session_state.multi_iterations.append({"l1": "--", "l2": "--", "l3": "--"})
-        st.rerun()
+                else: st.session_state.multi_iterations[i]["l3"] = "--"
 
 # 3. RESULTS ENGINE
 st.divider()
@@ -161,6 +145,7 @@ if st.session_state.search_clicked or q_search:
 
     if valid_filters:
         def filter_engine(group):
+            # Normalizing data to handle singular/plural and case issues
             project_actions = set()
             for col in ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
                 val = str(group[col].iloc[0]).strip().lower()
@@ -172,12 +157,16 @@ if st.session_state.search_clicked or q_search:
                 if f['l2'] != "--": search_actions.add(f['l2'].lower())
                 if f['l3'] != "--": search_actions.add(f['l3'].lower())
             
-            # Cross-check search logic with fuzzy match for safety
+            # General Match: Search actions must exist in the project
+            # Using fuzzy check to handle the singular/plural handshaking
             for s_act in search_actions:
                 match = any(s_act in p_act or p_act in s_act for p_act in project_actions)
                 if not match: return False
             
-            return project_actions == search_actions if unique_strict else True
+            # Strict Unique Match: Search actions must exactly equal Project actions
+            if unique_strict:
+                return len(project_actions) == len(search_actions)
+            return True
 
         m_ids = df_raw.groupby('Project ID').filter(filter_engine)['Project ID'].unique()
         df = df_raw[df_raw['Project ID'].isin(m_ids)]
