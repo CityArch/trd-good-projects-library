@@ -30,15 +30,19 @@ st.markdown(f"""
         text-align: center; margin-bottom: 30px;
     }}
     .mono-text {{ font-family: 'Roboto Mono', monospace; font-size: 0.85rem; color: #94A3B8; margin-bottom: 5px; }}
+    
+    /* ENHANCED REMARKS BOX VISIBILITY */
     .remarks-box {{ 
-        background: rgba(56, 189, 248, 0.1); 
-        border-left: 3px solid #38BDF8; 
+        background: rgba(56, 189, 248, 0.15); 
+        border-left: 4px solid #38BDF8; 
         padding: 12px; 
         border-radius: 4px; 
-        font-size: 0.85rem; 
-        color: #CBD5E1; 
-        margin: 8px 0 15px 15px; 
+        font-size: 0.9rem; 
+        color: #E2E8F0; 
+        margin: 10px 0 20px 10px;
+        line-height: 1.4;
     }}
+    
     .standardized-l1-image {{
         display: block; margin-left: auto; margin-right: auto;
         max-height: 300px; width: 100%; object-fit: contain;
@@ -75,12 +79,16 @@ TREE_DATA = {
 def load_csv_safe(file_path):
     if not os.path.exists(file_path): return pd.DataFrame()
     try:
-        df = pd.read_csv(file_path, encoding='utf-8-sig')
+        # Load with string type to prevent auto-conversion of numeric IDs or NaNs
+        df = pd.read_csv(file_path, encoding='utf-8-sig', dtype=str)
     except:
-        try: df = pd.read_csv(file_path, encoding='cp1252')
+        try: df = pd.read_csv(file_path, encoding='cp1252', dtype=str)
         except: return pd.DataFrame()
+    
     df.columns = [str(c).strip() for c in df.columns]
-    return df.fillna("").map(lambda x: str(x).strip())
+    # Clean up whitespace but keep valid strings
+    df = df.fillna("").map(lambda x: str(x).strip())
+    return df
 
 # --- INITIALIZE STATE ---
 if "search_reset_key" not in st.session_state: st.session_state.search_reset_key = 0
@@ -149,13 +157,11 @@ if st.session_state.search_clicked or q_search:
 
     if valid_filters:
         def filter_engine(group):
-            cols_to_check = ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
             project_values = set()
-            for col in cols_to_check:
+            for col in ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
                 for val in group[col].unique():
-                    v = str(val).strip()
-                    if v and v.lower() not in ["", "nan", "--"]:
-                        project_values.add(v.lower())
+                    v = str(val).strip().lower()
+                    if v and v not in ["", "nan", "--"]: project_values.add(v)
             
             search_values = set()
             for f in valid_filters:
@@ -183,11 +189,17 @@ if st.session_state.search_clicked or q_search:
                 st.markdown(f"### {r1['Project']}")
                 st.markdown(f"<p class='mono-text'><b>ID:</b> {p_id} | <b>Date:</b> {r1.get('Cert Date', '')}</p>", unsafe_allow_html=True)
                 
-                # Render each action row and its specific remarks immediately after
+                # Render each action row and its remarks
                 for _, r in gp.iterrows():
                     l3s = [str(r[c]) for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if str(r[c]).strip() and str(r[c]).lower() not in ["", "nan"]]
                     chain = f"• {r['Level1']} > {r['Level2']}" + (f" > {', '.join(l3s)}" if l3s else "")
                     st.markdown(f"<p class='mono-text'>{chain}</p>", unsafe_allow_html=True)
                     
-                    # Remarks pinned to this specific action chain
-                    rem = str(r.get('Remarks', '')).strip
+                    # ENHANCED REMARK RENDERING
+                    rem_val = str(r.get('Remarks', '')).strip()
+                    if rem_val and rem_val.lower() not in ["", "nan", "none"]:
+                        st.markdown(f"<div class='remarks-box'><b>Remarks:</b><br>{rem_val}</div>", unsafe_allow_html=True)
+                
+                z_url = str(r1.get('Approval Pack/NOC', '')).strip()
+                if z_url and z_url.lower() != 'nan': 
+                    st.link_button("ZAP", z_url, use_container_width=True)
