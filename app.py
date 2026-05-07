@@ -30,8 +30,6 @@ st.markdown(f"""
         text-align: center; margin-bottom: 30px;
     }}
     .mono-text {{ font-family: 'Roboto Mono', monospace; font-size: 0.85rem; color: #94A3B8; margin-bottom: 5px; }}
-    
-    /* ENHANCED REMARKS BOX VISIBILITY */
     .remarks-box {{ 
         background: rgba(56, 189, 248, 0.15); 
         border-left: 4px solid #38BDF8; 
@@ -42,7 +40,6 @@ st.markdown(f"""
         margin: 10px 0 20px 10px;
         line-height: 1.4;
     }}
-    
     .standardized-l1-image {{
         display: block; margin-left: auto; margin-right: auto;
         max-height: 300px; width: 100%; object-fit: contain;
@@ -79,16 +76,33 @@ TREE_DATA = {
 def load_csv_safe(file_path):
     if not os.path.exists(file_path): return pd.DataFrame()
     try:
-        # Load with string type to prevent auto-conversion of numeric IDs or NaNs
         df = pd.read_csv(file_path, encoding='utf-8-sig', dtype=str)
     except:
         try: df = pd.read_csv(file_path, encoding='cp1252', dtype=str)
         except: return pd.DataFrame()
-    
     df.columns = [str(c).strip() for c in df.columns]
-    # Clean up whitespace but keep valid strings
-    df = df.fillna("").map(lambda x: str(x).strip())
-    return df
+    return df.fillna("").map(lambda x: str(x).strip())
+
+def save_row(file_path, data_dict):
+    file_exists = os.path.isfile(file_path)
+    with open(file_path, mode='a', newline='', encoding='utf-8-sig') as f:
+        fieldnames = ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4', 'Project', 'Project ID', 'Cert Date', 'Approval Pack/NOC', 'Remarks', 'Status']
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        if not file_exists: writer.writeheader()
+        writer.writerow({k: str(data_dict.get(k, "")).strip() for k in fieldnames})
+
+# --- AUTHENTICATION ---
+if "password_correct" not in st.session_state: st.session_state.password_correct = False
+if not st.session_state.password_correct:
+    st.markdown("<div class='hero-section'><h1>🔒 TRD Good Projects Library</h1></div>", unsafe_allow_html=True)
+    with st.form("login"):
+        pw = st.text_input("Passcode", type="password")
+        if st.form_submit_button("UNLOCK"):
+            if pw == "1234567890":
+                st.session_state.password_correct = True
+                st.rerun()
+            else: st.error("Invalid passcode.")
+    st.stop()
 
 # --- INITIALIZE STATE ---
 if "search_reset_key" not in st.session_state: st.session_state.search_reset_key = 0
@@ -147,6 +161,18 @@ for i, iteration in enumerate(st.session_state.multi_iterations):
                     st.session_state.multi_iterations[i]["l3"] = st.radio(f"L3 - {cur_l2}", ["--"] + son_list, key=f"l3_{i}_{st.session_state.search_reset_key}")
                 else: st.session_state.multi_iterations[i]["l3"] = "--"
 
+# --- REINSTATED NAVIGATION BUTTONS ---
+st.markdown("<br>", unsafe_allow_html=True)
+nav1, nav2, _ = st.columns([0.15, 0.15, 0.7])
+if search_mode == "Multi-Action Search" and len(st.session_state.multi_iterations) < 5:
+    if nav1.button("➕ CONTINUE", use_container_width=True):
+        st.session_state.multi_iterations.append({"l1": "--", "l2": "--", "l3": "--"})
+        st.rerun()
+
+if search_mode == "Multi-Action Search" and len(st.session_state.multi_iterations) > 1:
+    if nav2.button("🏁 FINISH", use_container_width=True):
+        st.success("Search Filter locked.")
+
 # 3. RESULTS ENGINE
 st.divider()
 q_search = st.text_input("📝 KEYWORD SEARCH", placeholder="Search project name or ID...", key=f"q_{st.session_state.search_reset_key}")
@@ -158,7 +184,8 @@ if st.session_state.search_clicked or q_search:
     if valid_filters:
         def filter_engine(group):
             project_values = set()
-            for col in ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
+            cols_to_check = ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']
+            for col in cols_to_check:
                 for val in group[col].unique():
                     v = str(val).strip().lower()
                     if v and v not in ["", "nan", "--"]: project_values.add(v)
@@ -188,18 +215,33 @@ if st.session_state.search_clicked or q_search:
                 r1 = gp.iloc[0]
                 st.markdown(f"### {r1['Project']}")
                 st.markdown(f"<p class='mono-text'><b>ID:</b> {p_id} | <b>Date:</b> {r1.get('Cert Date', '')}</p>", unsafe_allow_html=True)
-                
-                # Render each action row and its remarks
                 for _, r in gp.iterrows():
                     l3s = [str(r[c]) for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if str(r[c]).strip() and str(r[c]).lower() not in ["", "nan"]]
                     chain = f"• {r['Level1']} > {r['Level2']}" + (f" > {', '.join(l3s)}" if l3s else "")
                     st.markdown(f"<p class='mono-text'>{chain}</p>", unsafe_allow_html=True)
-                    
-                    # ENHANCED REMARK RENDERING
                     rem_val = str(r.get('Remarks', '')).strip()
                     if rem_val and rem_val.lower() not in ["", "nan", "none"]:
                         st.markdown(f"<div class='remarks-box'><b>Remarks:</b><br>{rem_val}</div>", unsafe_allow_html=True)
-                
-                z_url = str(r1.get('Approval Pack/NOC', '')).strip()
-                if z_url and z_url.lower() != 'nan': 
-                    st.link_button("ZAP", z_url, use_container_width=True)
+                if str(r1.get('Approval Pack/NOC', '')).strip():
+                    st.link_button("ZAP", r1['Approval Pack/NOC'], use_container_width=True)
+
+# 4. ADMIN QUEUE
+st.divider()
+c1, c2 = st.columns([1, 1.2])
+with c1:
+    st.markdown("<p class='small-header'>📩 New Submission</p>", unsafe_allow_html=True)
+    with st.form("sub", clear_on_submit=True):
+        n_name, n_id = st.text_input("Name"), st.text_input("ID")
+        n_l1 = st.selectbox("L1 Selection", list(TREE_DATA.keys()))
+        if st.form_submit_button("SUBMIT") and n_name:
+            save_row('review_queue.csv', {'Level1': n_l1, 'Project': n_name, 'Project ID': n_id, 'Status': 'Pending'})
+            st.rerun()
+with c2:
+    st.markdown("<p class='small-header'>🕵️ Admin Queue</p>", unsafe_allow_html=True)
+    q_df = load_csv_safe('review_queue.csv')
+    if not q_df.empty:
+        for i, row in q_df.iterrows():
+            with st.container(border=True):
+                st.write(f"**{row['Project']}** (ID: {row['Project ID']})")
+                if st.button("🗑️", key=f"del_{i}"):
+                    df_q = q_df.drop(i); df_q.to_csv('review_queue.csv', index=False); st.rerun()
