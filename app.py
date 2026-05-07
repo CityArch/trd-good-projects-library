@@ -41,16 +41,22 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-# --- TREE DATA ---
+# --- TREE STRUCTURE DATA (CORRECTED LABELS) ---
 TREE_DATA = {
-    "Use_Waivers": {"image_file": "Use_waiver.jpg", "Spatially Controlled": [], "ZL-Wide": [], "Streetscape Controls/Location Waivers": []},
+    "Use_Waivers": {
+        "image_file": "Use_waiver.jpg",
+        "Spatially Controlled": [], "ZL-Wide": [], "Streetscape Controls/Location Waivers": []
+    },
     "Bulk_Waivers": {
         "image_file": "Bulk_waivers.jpg",
         "Height_Setbacks": ["Sky Exposure Plane", "Midtown Daylight Rules", "Height Limit Waivers", "Setback Waivers"],
         "Yards": [], "Lot Coverage": [], "Street Wall Location": [], "Courts": [], "Floor Area": [],
         "Tower Rules": [], "Distance Between Buildings & Distance Window - Lot Line": [], "Existing Non-Compliances": []
     },
-    "Parking_Curbcuts": {"image_file": "Parking.jpg", "Manhattan Core": [], "Parking Garages": [], "Required Parking Reductions": [], "Curb-Cuts": []},
+    "Parking_Curbcuts": {
+        "image_file": "Parking.jpg",
+        "Manhattan Core": [], "Parking Garages": [], "Required Parking Reductions": [], "Curb-Cuts": []
+    },
     "Open_Space": {
         "image_file": "Open Space.jpg",
         "POPs": ["New POPs", "Design change to Existing POPs", "MOD"],
@@ -60,7 +66,7 @@ TREE_DATA = {
     "Miscellaneous": {
         "image_file": "Miscellaneous.jpg",
         "LSGD": ["Single Zoning Lot", "Multi Zoning Lot", "Existing Buildings"],
-        "FRESH": ["Fresh Certifications", "Fresh with Authorizations"],
+        "FRESH": ["Fresh Certification", "Fresh with Authorization"], # Fixed: Dropped plural 's'
         "Transit Easement Certs": [], "Houses of Worships": [], "RRROW": [], "Greater East Midtown": []
     }
 }
@@ -74,15 +80,9 @@ def load_csv_safe(file_path):
         try: df = pd.read_csv(file_path, encoding='cp1252')
         except: return pd.DataFrame()
     df.columns = [str(c).strip().replace('ï»¿', '') for c in df.columns]
-    return df.fillna("")
-
-def save_row(file_path, data_dict):
-    file_exists = os.path.isfile(file_path)
-    with open(file_path, mode='a', newline='', encoding='utf-8-sig') as f:
-        fieldnames = ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4', 'Project', 'Project ID', 'Cert Date', 'Approval Pack/NOC', 'Remarks', 'Status']
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        if not file_exists: writer.writeheader()
-        writer.writerow({k: str(data_dict.get(k, "")).strip() for k in fieldnames})
+    for col in df.columns:
+        df[col] = df[col].astype(str).str.strip()
+    return df.replace("nan", "")
 
 # --- INITIALIZE STATE ---
 if "search_reset_key" not in st.session_state: st.session_state.search_reset_key = 0
@@ -93,16 +93,14 @@ df_raw = load_csv_safe('projects.csv')
 
 st.markdown("<div class='hero-section'><h1>🏙️ TRD GOOD PROJECTS LIBRARY</h1><p style='color:#38BDF8;'>NYC ZONING ANALYTICS TERMINAL</p></div>", unsafe_allow_html=True)
 
-# 1. SIDEBAR
+# 1. SIDEBAR CONFIG
 st.sidebar.markdown("### 🛠️ CONFIGURATION")
 search_mode = st.sidebar.radio("MODE", ["Single-Action Search", "Multi-Action Search"], key=f"mode_{st.session_state.search_reset_key}")
 
-# Logic Fix: Default to General scope for Single-Action to ensure results are found
+unique_strict = True 
 if search_mode == "Single-Action Search":
     s_type = st.sidebar.segmented_control("SCOPE", ["General", "Unique"], default="General", key=f"scope_{st.session_state.search_reset_key}")
     unique_strict = (s_type == "Unique")
-else:
-    unique_strict = True # Multi-Action remains strict
 
 st.sidebar.markdown("---")
 side_col1, side_col2 = st.sidebar.columns(2)
@@ -116,45 +114,46 @@ with side_col2:
         st.session_state.search_clicked = False
         st.rerun()
 
-# 2. WORKSPACE
+# 2. PROJECT SEARCH FILTER WORKSPACE
 st.subheader("🌳 Project Search Filter")
 workspace_cols = st.columns(len(st.session_state.multi_iterations))
 
 for i, iteration in enumerate(st.session_state.multi_iterations):
     with workspace_cols[i]:
-        sel_l1 = st.session_state.multi_iterations[i]["l1"]
-        if sel_l1 != "--":
-            img_b64 = get_base64_image(TREE_DATA[sel_l1]["image_file"])
-            if img_b64: st.markdown(f'<img src="data:image/jpeg;base64,{img_b64}" class="standardized-l1-image">', unsafe_allow_html=True)
-        else: st.markdown("<div style='height:300px;'></div>", unsafe_allow_html=True)
+        sel_l1_temp = st.session_state.multi_iterations[i]["l1"]
+        if sel_l1_temp != "--":
+            img_b64 = get_base64_image(TREE_DATA[sel_l1_temp]["image_file"])
+            if img_b64:
+                st.markdown(f'<img src="data:image/jpeg;base64,{img_b64}" class="standardized-l1-image">', unsafe_allow_html=True)
+        else:
+            st.markdown("<div style='height:300px;'></div>", unsafe_allow_html=True)
         
         st.session_state.multi_iterations[i]["l1"] = st.selectbox(f"L1 Selection", ["--"] + list(TREE_DATA.keys()), key=f"l1_{i}_{st.session_state.search_reset_key}")
         
-        cur_l1 = st.session_state.multi_iterations[i]["l1"]
-        if cur_l1 != "--":
-            daddy_list = [k for k in TREE_DATA[cur_l1].keys() if k != "image_file"]
-            st.session_state.multi_iterations[i]["l2"] = st.radio(f"L2 - {cur_l1}", ["--"] + daddy_list, key=f"l2_{i}_{st.session_state.search_reset_key}")
+        sel_l1 = st.session_state.multi_iterations[i]["l1"]
+        if sel_l1 != "--":
+            daddy_list = [k for k in TREE_DATA[sel_l1].keys() if k != "image_file"]
+            st.session_state.multi_iterations[i]["l2"] = st.radio(f"L2 - {sel_l1}", ["--"] + daddy_list, key=f"l2_{i}_{st.session_state.search_reset_key}")
             
-            cur_l2 = st.session_state.multi_iterations[i]["l2"]
-            if cur_l2 != "--":
-                son_list = TREE_DATA[cur_l1][cur_l2]
+            sel_l2 = st.session_state.multi_iterations[i]["l2"]
+            if sel_l2 != "--":
+                son_list = TREE_DATA[sel_l1][sel_l2]
                 if son_list:
-                    st.session_state.multi_iterations[i]["l3"] = st.radio(f"L3 - {cur_l2}", ["--"] + son_list, key=f"l3_{i}_{st.session_state.search_reset_key}")
-                else: st.session_state.multi_iterations[i]["l3"] = "--"
+                    st.session_state.multi_iterations[i]["l3"] = st.radio(f"L3 - {sel_l2}", ["--"] + son_list, key=f"l3_{i}_{st.session_state.search_reset_key}")
+                else:
+                    st.session_state.multi_iterations[i]["l3"] = "--"
 
 # Navigation
 st.markdown("<br>", unsafe_allow_html=True)
-n1, n2, _ = st.columns([0.15, 0.15, 0.7])
+nav1, nav2, _ = st.columns([0.15, 0.15, 0.7])
 if search_mode == "Multi-Action Search" and len(st.session_state.multi_iterations) < 5:
-    if n1.button("➕ CONTINUE"):
+    if nav1.button("➕ CONTINUE", use_container_width=True):
         st.session_state.multi_iterations.append({"l1": "--", "l2": "--", "l3": "--"})
         st.rerun()
-if len(st.session_state.multi_iterations) > 1:
-    if n2.button("🏁 FINISH"): st.success("Locked.")
 
 # 3. RESULTS ENGINE
 st.divider()
-q_search = st.text_input("📝 KEYWORD SEARCH", key=f"q_{st.session_state.search_reset_key}")
+q_search = st.text_input("📝 KEYWORD SEARCH", placeholder="Search project name or ID...", key=f"q_{st.session_state.search_reset_key}")
 
 if st.session_state.search_clicked or q_search:
     df = df_raw.copy()
@@ -164,17 +163,21 @@ if st.session_state.search_clicked or q_search:
         def filter_engine(group):
             project_actions = set()
             for col in ['Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
-                val = str(group[col].iloc[0]).strip()
-                if val and val.lower() != 'nan' and val != "--": project_actions.add(val)
+                val = str(group[col].iloc[0]).strip().lower()
+                if val and val != "" and val != "--": project_actions.add(val)
             
             search_actions = set()
             for f in valid_filters:
-                search_actions.add(f['l1'])
-                if f['l2'] != "--": search_actions.add(f['l2'])
-                if f['l3'] != "--": search_actions.add(f['l3'])
+                search_actions.add(f['l1'].lower())
+                if f['l2'] != "--": search_actions.add(f['l2'].lower())
+                if f['l3'] != "--": search_actions.add(f['l3'].lower())
             
-            if unique_strict: return project_actions == search_actions
-            return search_actions.issubset(project_actions)
+            # Cross-check search logic with fuzzy match for safety
+            for s_act in search_actions:
+                match = any(s_act in p_act or p_act in s_act for p_act in project_actions)
+                if not match: return False
+            
+            return project_actions == search_actions if unique_strict else True
 
         m_ids = df_raw.groupby('Project ID').filter(filter_engine)['Project ID'].unique()
         df = df_raw[df_raw['Project ID'].isin(m_ids)]
@@ -189,32 +192,13 @@ if st.session_state.search_clicked or q_search:
             with st.container(border=True):
                 r1 = gp.iloc[0]
                 st.markdown(f"### {r1['Project']}")
-                st.markdown(f"<p class='mono-text'><b>ID:</b> {p_id} | <b>Date:</b> {r1.get('Cert Date', '')}</p>", unsafe_allow_html=True)
+                st.markdown(f"<p class='mono-text'><b>Project ID:</b> {p_id} | <b>Cert Date:</b> {r1.get('Cert Date', r1.get('Cert Year', ''))}</p>", unsafe_allow_html=True)
                 for _, r in gp.iterrows():
                     l3s = [str(r[c]) for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if str(r[c]).strip() and str(r[c]).lower() != 'nan']
-                    st.markdown(f"<p class='mono-text'>• {r['Level1']} > {r['Level2']}" + (f" > {', '.join(l3s)}" if l3s else "") + "</p>", unsafe_allow_html=True)
+                    chain = f"• {r['Level1']} > {r['Level2']}" + (f" > {', '.join(l3s)}" if l3s else "")
+                    st.markdown(f"<p class='mono-text'>{chain}</p>", unsafe_allow_html=True)
                     if str(r.get('Remarks','')).strip() not in ["","nan"]:
                         st.markdown(f"<div class='remarks-box'><b>Remarks:</b> {r['Remarks']}</div>", unsafe_allow_html=True)
-                if str(r1.get('Approval Pack/NOC', '')).strip():
-                    st.link_button("ZAP", r1['Approval Pack/NOC'], use_container_width=True)
-
-# 4. ADMIN
-st.divider()
-c1, c2 = st.columns([1, 1.2])
-with c1:
-    st.markdown("<p class='small-header'>📩 New Submission</p>", unsafe_allow_html=True)
-    with st.form("sub", clear_on_submit=True):
-        n_name, n_id = st.text_input("Name"), st.text_input("ID")
-        n_l1 = st.selectbox("L1 Selection", list(TREE_DATA.keys()))
-        if st.form_submit_button("SUBMIT") and n_name:
-            save_row('review_queue.csv', {'Level1': n_l1, 'Project': n_name, 'Project ID': n_id, 'Status': 'Pending'})
-            st.rerun()
-with c2:
-    st.markdown("<p class='small-header'>🕵️ Admin Queue</p>", unsafe_allow_html=True)
-    q_df = load_csv_safe('review_queue.csv')
-    if not q_df.empty:
-        for i, row in q_df.iterrows():
-            with st.container(border=True):
-                st.write(f"**{row['Project']}** (ID: {row['Project ID']})")
-                if st.button("🗑️", key=f"del_{i}"):
-                    df_q = q_df.drop(i); df_q.to_csv('review_queue.csv', index=False); st.rerun()
+                z_url = str(r1.get('Approval Pack/NOC', '')).strip()
+                if z_url and z_url.lower() != 'nan':
+                    st.link_button("ZAP", z_url, use_container_width=True)
