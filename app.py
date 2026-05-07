@@ -111,7 +111,8 @@ if "search_clicked" not in st.session_state: st.session_state.search_clicked = F
 
 df_raw = load_csv_safe('projects.csv')
 
-st.markdown("<div class='hero-section'><h1>🏙️ TRD GOOD PROJECTS LIBRARY</h1><p style='color:#38BDF8;'>NYC ZONING ANALYTICS TERMINAL</p></div>", unsafe_allow_html=True)
+# --- UPDATED HERO SECTION ---
+st.markdown("<div class='hero-section'><h1>🏙️ TRD GOOD PROJECTS DIGITAL DATABASE</h1></div>", unsafe_allow_html=True)
 
 # 1. SIDEBAR
 st.sidebar.markdown("### 🛠️ CONFIGURATION")
