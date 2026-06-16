@@ -449,12 +449,24 @@ L1_STYLE = {
 def load_csv_safe(file_path):
     if not os.path.exists(file_path): return pd.DataFrame()
     try:
-        df = pd.read_csv(file_path, encoding='utf-8-sig', dtype=str)
-    except:
-        try: df = pd.read_csv(file_path, encoding='cp1252', dtype=str)
-        except: return pd.DataFrame()
+        df = pd.read_csv(file_path, encoding='utf-8-sig', encoding_errors='replace', dtype=str)
+    except Exception:
+        try:
+            df = pd.read_csv(file_path, encoding='cp1252', encoding_errors='replace', dtype=str)
+        except Exception:
+            try:
+                df = pd.read_csv(file_path, encoding='latin1', dtype=str)
+            except Exception:
+                return pd.DataFrame()
+                
     df.columns = [str(c).strip() for c in df.columns]
     
+    # Check if first row is the actual header row (due to comment line at the top)
+    if not df.empty and 'Project ID' not in df.columns:
+        if 'Project' in df.iloc[0].values and 'Project ID' in df.iloc[0].values:
+            df.columns = [str(c).strip() for c in df.iloc[0]]
+            df = df[1:].reset_index(drop=True)
+            
     # Normalize headers for uniform access
     if 'Cert Date' in df.columns and 'Cert Year' not in df.columns:
         df['Cert Year'] = df['Cert Date']
@@ -1227,7 +1239,23 @@ with admin_tabs[3]:
     upload_file = st.file_uploader("Upload projects.csv replacement", type=["csv"])
     if upload_file is not None:
         try:
-            uploaded_df = pd.read_csv(upload_file, encoding='utf-8-sig', dtype=str)
+            try:
+                uploaded_df = pd.read_csv(upload_file, encoding='utf-8-sig', encoding_errors='replace', dtype=str)
+            except Exception:
+                try:
+                    uploaded_df = pd.read_csv(upload_file, encoding='cp1252', encoding_errors='replace', dtype=str)
+                except Exception:
+                    try:
+                        uploaded_df = pd.read_csv(upload_file, encoding='latin1', dtype=str)
+                    except Exception:
+                        uploaded_df = pd.DataFrame()
+            
+            uploaded_df.columns = [str(c).strip() for c in uploaded_df.columns]
+            if not uploaded_df.empty and 'Project ID' not in uploaded_df.columns:
+                if 'Project' in uploaded_df.iloc[0].values and 'Project ID' in uploaded_df.iloc[0].values:
+                    uploaded_df.columns = [str(c).strip() for c in uploaded_df.iloc[0]]
+                    uploaded_df = uploaded_df[1:].reset_index(drop=True)
+            
             st.write("Preview of uploaded database:")
             st.dataframe(uploaded_df.head(5), use_container_width=True)
             
