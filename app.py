@@ -621,7 +621,17 @@ with side_col2:
         st.rerun()
 
 # --- 2. WORKSPACE / SEARCH FILTERS ---
-st.subheader("🌳 Project Search Filter")
+col_hdr, col_reset = st.columns([0.75, 0.25])
+with col_hdr:
+    st.subheader("🌳 Project Search Filter")
+with col_reset:
+    st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+    if st.button("🔄 Reset Filtering", key="workspace_reset_btn", use_container_width=True):
+        st.session_state.search_reset_key += 1
+        st.session_state.multi_iterations = [{"l1": "--", "l2": "--", "l3": "--"}]
+        st.session_state.search_clicked = False
+        st.rerun()
+
 workspace_cols = st.columns(len(st.session_state.multi_iterations))
 
 for i, iteration in enumerate(st.session_state.multi_iterations):
