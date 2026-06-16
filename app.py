@@ -434,7 +434,7 @@ TREE_DATA = {
         "image_file": "Miscellaneous.jpg",
         "LSGD": ["Single Zoning Lot", "Multi Zoning Lot", "Existing Buildings"],
         "FRESH": ["Fresh Certification", "Fresh with Authorization"],
-        "Transit Easement Certs": [], "Houses of Worships": [], "RRROW": [], "Greater East Midtown": []
+        "Transit Easement Certs": [], "Transit Improvement Bonus": [], "Houses of Worships": [], "RRROW": [], "Greater East Midtown": []
     }
 }
 
