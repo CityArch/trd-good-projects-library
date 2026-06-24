@@ -539,6 +539,7 @@ if not st.session_state.password_correct:
 if "search_reset_key" not in st.session_state: st.session_state.search_reset_key = 0
 if "multi_iterations" not in st.session_state: st.session_state.multi_iterations = [{"l1": "--", "l2": "--", "l3": "--"}]
 if "search_clicked" not in st.session_state: st.session_state.search_clicked = False
+if "edit_reset_key" not in st.session_state: st.session_state.edit_reset_key = 0
 
 df_raw = load_csv_safe('projects.csv')
 
@@ -1071,7 +1072,7 @@ with admin_tabs[2]:
         
         proj_list = sorted(proj_list, key=lambda x: x['label'].lower())
         options_labels = [p['label'] for p in proj_list]
-        selected_label = st.selectbox("Select Project to Edit", ["--"] + options_labels, key="edit_proj_select")
+        selected_label = st.selectbox("Select Project to Edit", ["--"] + options_labels, key=f"edit_proj_select_{st.session_state.edit_reset_key}")
         
         if selected_label != "--":
             sel_proj_id = next(p['id'] for p in proj_list if p['label'] == selected_label)
@@ -1181,6 +1182,7 @@ with admin_tabs[2]:
                     df_live_save = df_live[cols_to_save]
                     df_live_save.to_csv('projects.csv', index=False, encoding='utf-8-sig')
                     st.success("Successfully updated project in database!")
+                    st.session_state.edit_reset_key += 1
                     st.rerun()
             with act_col2:
                 if st.button("➕ ADD NEW PATH TO PROJECT", use_container_width=True):
@@ -1205,6 +1207,7 @@ with admin_tabs[2]:
                     df_new_live = df_live[df_live['Project ID'] != sel_proj_id]
                     df_new_live.to_csv('projects.csv', index=False)
                     st.warning(f"Deleted project {edit_name} and all its classification paths.")
+                    st.session_state.edit_reset_key += 1
                     st.rerun()
 
 # TAB 4: BACKUPS & CSV OPERATIONS
