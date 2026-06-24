@@ -602,11 +602,8 @@ st.markdown(f"""
 st.sidebar.markdown("### 🛠️ CONFIGURATION")
 search_mode = st.sidebar.radio("SEARCH MODE", ["Single-Action Search", "Multi-Action Search"], key=f"mode_{st.session_state.search_reset_key}")
 
-if search_mode == "Single-Action Search":
-    s_type = st.sidebar.segmented_control("SCOPE", ["General", "Unique"], default="General", key=f"scope_{st.session_state.search_reset_key}")
-    unique_strict = (s_type == "Unique")
-else:
-    unique_strict = True 
+s_type = st.sidebar.segmented_control("SCOPE", ["General", "Unique"], default="General", key=f"scope_{st.session_state.search_reset_key}")
+unique_strict = (s_type == "Unique")
 
 st.sidebar.markdown("---")
 side_col1, side_col2 = st.sidebar.columns(2)
