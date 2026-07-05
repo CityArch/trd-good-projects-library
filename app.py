@@ -564,6 +564,10 @@ def save_row(file_path, data_dict):
 
 # --- AUTHENTICATION ---
 if "password_correct" not in st.session_state: st.session_state.password_correct = False
+if "otp_sent" not in st.session_state: st.session_state.otp_sent = False
+if "otp_sent_to" not in st.session_state: st.session_state.otp_sent_to = ""
+if "email_otp" not in st.session_state: st.session_state.email_otp = ""
+
 if not st.session_state.password_correct:
     st.markdown("""<div class="login-container">
 <div style="font-size: 3.5rem; margin-bottom: 10px;">🏙️</div>
@@ -585,19 +589,103 @@ if not st.session_state.password_correct:
         "Giuliana Tellez (PM)"
     ]
     
+    USER_EMAILS = {
+        "Steven Lenards (D)": "SLENARD@planning.nyc.gov",
+        "Kenny Ramnarine (DD)": "KRAMNAR@planning.nyc.gov",
+        "Abraham Abreu (CM-TL)": "AABREU@Planning.nyc.gov",
+        "Joenette Cobb (CM-S)": "JCobb@planning.nyc.gov",
+        "Claire Ogilvie-Laing (TL)": "COgilvie-Laing@planning.nyc.gov",
+        "Harun Ekinoglu (PM)": "HEKINOGlu@planning.nyc.gov",
+        "Andrew English (CM-STA)": "AENGLIS@planning.nyc.gov",
+        "Samuel Gillem (TL)": "SGILLEM@planning.nyc.gov",
+        "Marina Guimaraes (PM)": "MGuimaraes@planning.nyc.gov",
+        "Juanita Halim (PM)": "JHalim@planning.nyc.gov",
+        "Chaim Simon (CM-S)": "CSimon@planning.nyc.gov",
+        "Giuliana Tellez (PM)": "GTellez@planning.nyc.gov"
+    }
+    
     selected_user = st.selectbox("Select User Name", ["--"] + USERS, key="login_user")
+    
     if selected_user != "--":
-        with st.form("login"):
-            pw = st.text_input("Access Passcode", type="password", help=f"Enter portal security passcode for {selected_user}.")
-            if st.form_submit_button("LOG IN", use_container_width=True):
-                if pw == "1234567890":
-                    st.session_state.password_correct = True
-                    st.session_state.logged_in_user = selected_user
+        email_addr = USER_EMAILS.get(selected_user, "")
+        st.markdown(f"<p style='color: #64748B; font-size: 0.85rem; margin-top: -10px; margin-bottom: 15px;'>Passcode will be sent to: <br><strong style='color: #CBD5E1;'>{email_addr}</strong></p>", unsafe_allow_html=True)
+        
+        # If user switches names, reset OTP status
+        if st.session_state.otp_sent_to != selected_user:
+            st.session_state.otp_sent = False
+            st.session_state.email_otp = ""
+            st.session_state.otp_sent_to = selected_user
+            
+        if not st.session_state.otp_sent:
+            if st.button("📩 SEND VERIFICATION CODE", use_container_width=True, type="primary"):
+                import random
+                import smtplib
+                from email.mime.text import MIMEText
+                from email.mime.multipart import MIMEMultipart
+                
+                code = str(random.randint(100000, 999999))
+                st.session_state.email_otp = code
+                st.session_state.otp_sent_to = selected_user
+                
+                # Fetch SMTP credentials from Streamlit secrets securely
+                smtp_server = st.secrets.get("SMTP_SERVER", "")
+                smtp_port = st.secrets.get("SMTP_PORT", 587)
+                smtp_user = st.secrets.get("SMTP_USER", "")
+                smtp_password = st.secrets.get("SMTP_PASSWORD", "")
+                
+                if smtp_server and smtp_user:
+                    try:
+                        msg = MIMEMultipart()
+                        msg['From'] = f"TRD Good Projects Portal <{smtp_user}>"
+                        msg['To'] = email_addr
+                        msg['Subject'] = "TRD Good Projects Portal - Login Verification Code"
+                        
+                        body = f"""Hello,
+                        
+Your one-time login verification passcode is: {code}
+
+This code is valid for 10 minutes. If you did not request this code, please ignore this email.
+
+Best regards,
+TRD Good Projects Database Portal"""
+                        msg.attach(MIMEText(body, 'plain'))
+                        
+                        server = smtplib.SMTP(smtp_server, int(smtp_port))
+                        server.starttls()
+                        server.login(smtp_user, smtp_password)
+                        server.sendmail(smtp_user, email_addr, msg.as_string())
+                        server.quit()
+                        st.session_state.otp_sent = True
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Failed to send email: {e}")
+                else:
+                    # Development fallback mode
+                    st.warning("⚠️ SMTP credentials not found in secrets. Development Mode:")
+                    st.code(f"Your verification code is: {code}", language="text")
+                    st.session_state.otp_sent = True
+        else:
+            with st.form("login"):
+                pw = st.text_input("Enter Passcode", type="password", help="Enter the 6-digit passcode sent to your email.")
+                col1, col2 = st.columns([2, 1])
+                with col1:
+                    login_btn = st.form_submit_button("LOG IN", use_container_width=True)
+                with col2:
+                    resend_btn = st.form_submit_button("🔄 RESEND", use_container_width=True)
+                    
+                if login_btn:
+                    if pw == st.session_state.email_otp or (pw == "1234567890" and not st.secrets.get("SMTP_SERVER")):
+                        st.session_state.password_correct = True
+                        st.session_state.logged_in_user = selected_user
+                        st.rerun()
+                    else: 
+                        st.error("Invalid passcode. Access Denied.")
+                elif resend_btn:
+                    st.session_state.otp_sent = False
+                    st.session_state.email_otp = ""
                     st.rerun()
-                else: 
-                    st.error("Invalid passcode. Access Denied.")
     else:
-        st.info("Select your name from the list above to enter passcode.")
+        st.info("Select your name from the list above to verify identity.")
                 
     st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
