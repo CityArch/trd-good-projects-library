@@ -54,6 +54,19 @@ def log_event(user, event_type, details=""):
     except Exception as e:
         print(f"Logging failed: {e}")
 
+def get_logged_in_voting_role(username):
+    if not username:
+        return None
+    if "(PM)" in username:
+        return "PM"
+    if "(TL)" in username or "CM-TL" in username:
+        return "TL"
+    if "(DD)" in username:
+        return "DD"
+    if "(D)" in username:
+        return "D"
+    return None
+
 
 # --- CSS STYLING ---
 st.markdown(f"""
@@ -984,7 +997,7 @@ admin_tabs = st.tabs(["📋 Review Queue", "➕ Nominate a Good Project", "✏�
 with admin_tabs[0]:
     q_df = load_csv_safe('review_queue.csv')
     if not q_df.empty:
-        for role_col in ['Vote_PM', 'Vote_TL', 'Vote_DD', 'Vote_D']:
+        for role_col in ['Vote_PM', 'Vote_TL', 'Vote_DD', 'Vote_D', 'Nominator']:
             if role_col not in q_df.columns:
                 q_df[role_col] = ""
     
@@ -1027,6 +1040,9 @@ with admin_tabs[0]:
                 vote_cols = st.columns(4)
                 roles = [("PM", "Project Manager"), ("TL", "Team Lead"), ("DD", "Deputy Director"), ("D", "Director")]
                 
+                current_user_role = get_logged_in_voting_role(st.session_state.get("logged_in_user", ""))
+                nominator = str(row.get('Nominator', '')).strip()
+                
                 for r_idx, (role_init, role_name) in enumerate(roles):
                     with vote_cols[r_idx]:
                         with st.container(border=True):
@@ -1036,28 +1052,38 @@ with admin_tabs[0]:
                             is_liked = (current_vote == 'like')
                             is_disliked = (current_vote == 'dislike')
                             
+                            # Determine if this specific vote box is clickable/active
+                            role_allowed = (current_user_role == role_init)
+                            not_voted_yet = (current_vote not in ['like', 'dislike'])
+                            is_active = role_allowed and not_voted_yet
+                            
+                            if role_init == "PM":
+                                is_active = is_active and (st.session_state.get("logged_in_user", "") == nominator or nominator == "")
+                                
+                            disabled_flag = not is_active
+                            
                             sym_col1, sym_col2 = st.columns(2)
                             with sym_col1:
-                                if st.button("[👍](https://like-btn)", key=f"btn_like_{role_init}_{i}", type="primary" if is_liked else "secondary", use_container_width=True):
-                                    new_vote = '' if is_liked else 'like'
+                                if st.button("[👍](https://like-btn)", key=f"btn_like_{role_init}_{i}", type="primary" if is_liked else "secondary", use_container_width=True, disabled=disabled_flag):
+                                    new_vote = 'like'
                                     q_df_live = load_csv_safe('review_queue.csv')
                                     for role_col in ['Vote_PM', 'Vote_TL', 'Vote_DD', 'Vote_D']:
                                         if role_col not in q_df_live.columns:
                                             q_df_live[role_col] = ""
                                     q_df_live.at[i, f'Vote_{role_init}'] = new_vote
                                     q_df_live.to_csv('review_queue.csv', index=False, encoding='utf-8-sig')
-                                    log_event(st.session_state.logged_in_user, "Vote Cast", f"Project: '{row['Project']}' (ID: {row['Project ID']}) | Voted {new_vote.upper() if new_vote else 'CLEARED'} as role {role_init}")
+                                    log_event(st.session_state.logged_in_user, "Vote Cast", f"Project: '{row['Project']}' (ID: {row['Project ID']}) | Voted {new_vote.upper()} as role {role_init}")
                                     st.rerun()
                             with sym_col2:
-                                if st.button("[👎](https://dislike-btn)", key=f"btn_dislike_{role_init}_{i}", type="primary" if is_disliked else "secondary", use_container_width=True):
-                                    new_vote = '' if is_disliked else 'dislike'
+                                if st.button("[👎](https://dislike-btn)", key=f"btn_dislike_{role_init}_{i}", type="primary" if is_disliked else "secondary", use_container_width=True, disabled=disabled_flag):
+                                    new_vote = 'dislike'
                                     q_df_live = load_csv_safe('review_queue.csv')
                                     for role_col in ['Vote_PM', 'Vote_TL', 'Vote_DD', 'Vote_D']:
                                         if role_col not in q_df_live.columns:
                                             q_df_live[role_col] = ""
                                     q_df_live.at[i, f'Vote_{role_init}'] = new_vote
                                     q_df_live.to_csv('review_queue.csv', index=False, encoding='utf-8-sig')
-                                    log_event(st.session_state.logged_in_user, "Vote Cast", f"Project: '{row['Project']}' (ID: {row['Project ID']}) | Voted {new_vote.upper() if new_vote else 'CLEARED'} as role {role_init}")
+                                    log_event(st.session_state.logged_in_user, "Vote Cast", f"Project: '{row['Project']}' (ID: {row['Project ID']}) | Voted {new_vote.upper()} as role {role_init}")
                                     st.rerun()
                                     
                 # Check if D (Director) has voted
@@ -1086,11 +1112,11 @@ with admin_tabs[0]:
                 
                 st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
                 
-                # Relocate Approve and Delete buttons below the boxes, active only after D voted
+                # Relocate Approve and Delete buttons below the boxes, active only after all four voted
                 btn_col1, btn_col2 = st.columns(2)
                 with btn_col1:
-                    approve_disabled = (num_approved >= 10) or (not d_voted)
-                    approve_help = "Approve this submission (requires vote from Director D)" if not d_voted else "Approve this submission (max 10 allowed)"
+                    approve_disabled = (num_approved >= 10) or (not all_four_voted)
+                    approve_help = "Approve this submission (requires votes from PM, TL, DD, and D)" if not all_four_voted else "Approve this submission (max 10 allowed)"
                     if st.button("✅ Approve", key=f"appr_{i}", use_container_width=True, disabled=approve_disabled, help=approve_help):
                         q_df_live = load_csv_safe('review_queue.csv')
                         q_df_live.at[i, 'Status'] = 'Approved'
@@ -1099,8 +1125,8 @@ with admin_tabs[0]:
                         st.success(f"Approved '{row['Project']}'! It is now in the Approved Projects list.")
                         st.rerun()
                 with btn_col2:
-                    delete_disabled = not d_voted
-                    delete_help = "Delete this submission (requires vote from Director D)" if not d_voted else "Delete this submission from queue"
+                    delete_disabled = not all_four_voted
+                    delete_help = "Delete this submission (requires votes from PM, TL, DD, and D)" if not all_four_voted else "Delete this submission from queue"
                     if st.button("🗑️ Delete", key=f"rej_{i}", use_container_width=True, disabled=delete_disabled, help=delete_help):
                         q_df_live = load_csv_safe('review_queue.csv')
                         q_df_live = q_df_live.drop(i)
@@ -1264,7 +1290,8 @@ with admin_tabs[1]:
                     'ZR Section': add_zr,
                     'Sample Categories': add_sample,
                     'Remarks': add_remarks,
-                    'Status': 'Pending'
+                    'Status': 'Pending',
+                    'Nominator': st.session_state.logged_in_user
                 }
                 save_row('review_queue.csv', new_row)
                 count_subm += 1
