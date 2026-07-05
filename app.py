@@ -387,6 +387,52 @@ st.markdown(f"""
         color: #F472B6 !important;
         border: 1px solid rgba(244, 114, 182, 0.35) !important;
     }}
+
+    /* LIKE BUTTON: GREEN */
+    div[data-testid="stButton"]:has(a[href="https://like-btn"]) a {{
+        color: #10B981 !important;
+        text-decoration: none !important;
+        pointer-events: none !important;
+    }}
+    div[data-testid="stButton"]:has(a[href="https://like-btn"]) button[data-testid="baseButton-secondary"] {{
+        border-color: rgba(16, 185, 129, 0.4) !important;
+        background-color: rgba(16, 185, 129, 0.03) !important;
+    }}
+    div[data-testid="stButton"]:has(a[href="https://like-btn"]) button[data-testid="baseButton-secondary"]:hover {{
+        border-color: #10B981 !important;
+        background-color: rgba(16, 185, 129, 0.15) !important;
+    }}
+    div[data-testid="stButton"]:has(a[href="https://like-btn"]) button[data-testid="baseButton-primary"] {{
+        background-color: #10B981 !important;
+        border-color: #059669 !important;
+        color: white !important;
+    }}
+    div[data-testid="stButton"]:has(a[href="https://like-btn"]) button[data-testid="baseButton-primary"] a {{
+        color: white !important;
+    }}
+
+    /* DISLIKE BUTTON: RED */
+    div[data-testid="stButton"]:has(a[href="https://dislike-btn"]) a {{
+        color: #EF4444 !important;
+        text-decoration: none !important;
+        pointer-events: none !important;
+    }}
+    div[data-testid="stButton"]:has(a[href="https://dislike-btn"]) button[data-testid="baseButton-secondary"] {{
+        border-color: rgba(239, 68, 68, 0.4) !important;
+        background-color: rgba(239, 68, 68, 0.03) !important;
+    }}
+    div[data-testid="stButton"]:has(a[href="https://dislike-btn"]) button[data-testid="baseButton-secondary"]:hover {{
+        border-color: #EF4444 !important;
+        background-color: rgba(239, 68, 68, 0.15) !important;
+    }}
+    div[data-testid="stButton"]:has(a[href="https://dislike-btn"]) button[data-testid="baseButton-primary"] {{
+        background-color: #EF4444 !important;
+        border-color: #DC2626 !important;
+        color: white !important;
+    }}
+    div[data-testid="stButton"]:has(a[href="https://dislike-btn"]) button[data-testid="baseButton-primary"] a {{
+        color: white !important;
+    }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -894,30 +940,41 @@ with admin_tabs[0]:
                             
                             sym_col1, sym_col2 = st.columns(2)
                             with sym_col1:
-                                if st.button("👍", key=f"btn_like_{role_init}_{i}", type="primary" if st.session_state[like_key] else "secondary", use_container_width=True):
+                                if st.button("[👍](https://like-btn)", key=f"btn_like_{role_init}_{i}", type="primary" if st.session_state[like_key] else "secondary", use_container_width=True):
                                     st.session_state[like_key] = not st.session_state[like_key]
                                     st.session_state[dislike_key] = False
                                     st.rerun()
                             with sym_col2:
-                                if st.button("👎", key=f"btn_dislike_{role_init}_{i}", type="primary" if st.session_state[dislike_key] else "secondary", use_container_width=True):
+                                if st.button("[👎](https://dislike-btn)", key=f"btn_dislike_{role_init}_{i}", type="primary" if st.session_state[dislike_key] else "secondary", use_container_width=True):
                                     st.session_state[dislike_key] = not st.session_state[dislike_key]
                                     st.session_state[like_key] = False
                                     st.rerun()
                                     
+                # Check if all 4 roles have voted (either liked or disliked)
+                votes_cast = []
+                for role_init, _ in roles:
+                    liked = st.session_state.get(f"vote_{role_init}_like_{i}", False)
+                    disliked = st.session_state.get(f"vote_{role_init}_dislike_{i}", False)
+                    votes_cast.append(liked or disliked)
+                all_voted = all(votes_cast)
+                
                 st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
                 
                 # Relocate Approve and Delete buttons below the boxes
                 btn_col1, btn_col2 = st.columns(2)
                 with btn_col1:
-                    approve_disabled = (num_approved >= 10)
-                    if st.button("✅ Approve", key=f"appr_{i}", use_container_width=True, disabled=approve_disabled, help="Approve this submission (max 10 allowed)"):
+                    approve_disabled = (num_approved >= 10) or (not all_voted)
+                    approve_help = "Approve this submission (requires votes from all 4 roles)" if not all_voted else "Approve this submission (max 10 allowed)"
+                    if st.button("✅ Approve", key=f"appr_{i}", use_container_width=True, disabled=approve_disabled, help=approve_help):
                         q_df_live = load_csv_safe('review_queue.csv')
                         q_df_live.at[i, 'Status'] = 'Approved'
                         q_df_live.to_csv('review_queue.csv', index=False, encoding='utf-8-sig')
                         st.success(f"Approved '{row['Project']}'! It is now in the Approved Projects list.")
                         st.rerun()
                 with btn_col2:
-                    if st.button("🗑️ Delete", key=f"rej_{i}", use_container_width=True):
+                    delete_disabled = not all_voted
+                    delete_help = "Delete this submission (requires votes from all 4 roles)" if not all_voted else "Delete this submission from queue"
+                    if st.button("🗑️ Delete", key=f"rej_{i}", use_container_width=True, disabled=delete_disabled, help=delete_help):
                         q_df_live = load_csv_safe('review_queue.csv')
                         q_df_live = q_df_live.drop(i)
                         q_df_live.to_csv('review_queue.csv', index=False, encoding='utf-8-sig')
