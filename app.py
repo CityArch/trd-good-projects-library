@@ -984,15 +984,7 @@ with admin_tabs[0]:
                     like_block = f'<div style="width: {like_pct}%; background-color: #10B981; height: 100%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.75rem; font-weight: bold;">👍 {like_pct:.0f}%</div>' if likes_count > 0 else ''
                     dislike_block = f'<div style="width: {dislike_pct}%; background-color: #EF4444; height: 100%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.75rem; font-weight: bold;">👎 {dislike_pct:.0f}%</div>' if dislikes_count > 0 else ''
                     
-                    scale_html = f"""
-                    <div style="margin-top: 15px; margin-bottom: 5px;">
-                        <span style="font-size: 0.85rem; font-weight: 600; color: #94A3B8; font-family: 'Outfit';">VOTING RATIO</span>
-                        <div style="width: 100%; background-color: #1E293B; border-radius: 6px; height: 20px; display: flex; overflow: hidden; margin-top: 4px; border: 1px solid rgba(255,255,255,0.08);">
-                            {like_block}
-                            {dislike_block}
-                        </div>
-                    </div>
-                    """
+                    scale_html = f'<div style="margin-top: 15px; margin-bottom: 5px;"><span style="font-size: 0.85rem; font-weight: 600; color: #94A3B8; font-family: \'Outfit\';">Like/Dislike Ratio</span><div style="width: 100%; background-color: #1E293B; border-radius: 6px; height: 20px; display: flex; overflow: hidden; margin-top: 4px; border: 1px solid rgba(255,255,255,0.08);">{like_block}{dislike_block}</div></div>'
                     st.markdown(scale_html, unsafe_allow_html=True)
                 
                 st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
