@@ -19,6 +19,42 @@ def get_base64_image(image_path):
 
 img_base64 = get_base64_image("image.jpg")
 
+# --- HELPER: GET CLIENT IP & LOG EVENTS ---
+def get_client_ip():
+    try:
+        from streamlit.web.server.websocket_headers import _get_websocket_headers
+        headers = _get_websocket_headers()
+        if headers:
+            ip = headers.get("X-Forwarded-For")
+            if ip:
+                return ip.split(",")[0].strip()
+            ip = headers.get("X-Real-IP")
+            if ip:
+                return ip.strip()
+            host = headers.get("Host", "")
+            if "localhost" in host or "127.0.0.1" in host:
+                return "127.0.0.1"
+    except Exception:
+        pass
+    return "Unknown"
+
+def log_event(user, event_type, details=""):
+    from datetime import datetime
+    log_file = "login_logbook.csv"
+    file_exists = os.path.exists(log_file)
+    ip_addr = get_client_ip()
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    try:
+        with open(log_file, "a", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            if not file_exists:
+                writer.writerow(["Timestamp", "User", "IP Address", "Event", "Details"])
+            writer.writerow([timestamp, user, ip_addr, event_type, details])
+    except Exception as e:
+        print(f"Logging failed: {e}")
+
+
 # --- CSS STYLING ---
 st.markdown(f"""
     <style>
@@ -610,6 +646,7 @@ if not st.session_state.password_correct:
                     if entered_hash == stored_hash:
                         st.session_state.password_correct = True
                         st.session_state.logged_in_user = selected_user
+                        log_event(selected_user, "Login", "Successfully authenticated via password hash")
                         st.rerun()
                     else: 
                         st.error("Invalid passcode. Access Denied.")
@@ -618,6 +655,7 @@ if not st.session_state.password_correct:
                     if pw == "1234567890":
                         st.session_state.password_correct = True
                         st.session_state.logged_in_user = selected_user
+                        log_event(selected_user, "Login", "Successfully authenticated via default fallback passcode")
                         st.rerun()
                     else:
                         st.error("Invalid passcode. Access Denied. (Passcode: 1234567890)")
@@ -698,6 +736,7 @@ st.markdown(f"""
 if "logged_in_user" in st.session_state:
     st.sidebar.markdown(f"👤 **Active User:**\n`{st.session_state.logged_in_user}`")
     if st.sidebar.button("🚪 LOG OUT", key="logout_btn", use_container_width=True):
+        log_event(st.session_state.logged_in_user, "Logout", "User logged out successfully")
         st.session_state.password_correct = False
         st.session_state.pop("logged_in_user", None)
         st.rerun()
@@ -939,7 +978,7 @@ ZAP
 # --- 4. ADMIN CONTROL CENTER ---
 st.divider()
 st.subheader("🔑 Administrative Control Center")
-admin_tabs = st.tabs(["📋 Review Queue", "➕ Nominate a Good Project", "✏️ Edit / Delete Database", "💾 Backup & CSV Tools"])
+admin_tabs = st.tabs(["📋 Review Queue", "➕ Nominate a Good Project", "✏️ Edit / Delete Database", "📊 Activity Logbook", "💾 Backup & CSV Tools"])
 
 # TAB 1: REVIEW QUEUE
 with admin_tabs[0]:
@@ -1007,6 +1046,7 @@ with admin_tabs[0]:
                                             q_df_live[role_col] = ""
                                     q_df_live.at[i, f'Vote_{role_init}'] = new_vote
                                     q_df_live.to_csv('review_queue.csv', index=False, encoding='utf-8-sig')
+                                    log_event(st.session_state.logged_in_user, "Vote Cast", f"Project: '{row['Project']}' (ID: {row['Project ID']}) | Voted {new_vote.upper() if new_vote else 'CLEARED'} as role {role_init}")
                                     st.rerun()
                             with sym_col2:
                                 if st.button("[👎](https://dislike-btn)", key=f"btn_dislike_{role_init}_{i}", type="primary" if is_disliked else "secondary", use_container_width=True):
@@ -1017,6 +1057,7 @@ with admin_tabs[0]:
                                             q_df_live[role_col] = ""
                                     q_df_live.at[i, f'Vote_{role_init}'] = new_vote
                                     q_df_live.to_csv('review_queue.csv', index=False, encoding='utf-8-sig')
+                                    log_event(st.session_state.logged_in_user, "Vote Cast", f"Project: '{row['Project']}' (ID: {row['Project ID']}) | Voted {new_vote.upper() if new_vote else 'CLEARED'} as role {role_init}")
                                     st.rerun()
                                     
                 # Check if D (Director) has voted
@@ -1054,6 +1095,7 @@ with admin_tabs[0]:
                         q_df_live = load_csv_safe('review_queue.csv')
                         q_df_live.at[i, 'Status'] = 'Approved'
                         q_df_live.to_csv('review_queue.csv', index=False, encoding='utf-8-sig')
+                        log_event(st.session_state.logged_in_user, "Approve Submission", f"Approved project '{row['Project']}' (ID: {row['Project ID']}) to the Approved List")
                         st.success(f"Approved '{row['Project']}'! It is now in the Approved Projects list.")
                         st.rerun()
                 with btn_col2:
@@ -1063,6 +1105,7 @@ with admin_tabs[0]:
                         q_df_live = load_csv_safe('review_queue.csv')
                         q_df_live = q_df_live.drop(i)
                         q_df_live.to_csv('review_queue.csv', index=False, encoding='utf-8-sig')
+                        log_event(st.session_state.logged_in_user, "Delete Submission", f"Removed project '{row['Project']}' (ID: {row['Project ID']}) from review queue")
                         st.warning(f"Removed '{row['Project']}' from queue.")
                         st.rerun()
                             
@@ -1121,6 +1164,7 @@ with admin_tabs[0]:
                             q_df_live = load_csv_safe('review_queue.csv')
                             q_df_live = q_df_live.drop(i)
                             q_df_live.to_csv('review_queue.csv', index=False, encoding='utf-8-sig')
+                            log_event(st.session_state.logged_in_user, "Save to Database", f"Moved approved project '{row['Project']}' (ID: {row['Project ID']}) to the live projects.csv database")
                             st.success(f"Added '{row['Project']}' to the live database CSV and removed from queue!")
                             st.rerun()
                     with btn_col2:
@@ -1128,6 +1172,7 @@ with admin_tabs[0]:
                             q_df_live = load_csv_safe('review_queue.csv')
                             q_df_live = q_df_live.drop(i)
                             q_df_live.to_csv('review_queue.csv', index=False, encoding='utf-8-sig')
+                            log_event(st.session_state.logged_in_user, "Delete Approved Project", f"Deleted approved project '{row['Project']}' (ID: {row['Project ID']}) from Approved List")
                             st.warning(f"Deleted approved project '{row['Project']}'.")
                             st.rerun()
 
@@ -1224,6 +1269,7 @@ with admin_tabs[1]:
                 save_row('review_queue.csv', new_row)
                 count_subm += 1
                 
+            log_event(st.session_state.logged_in_user, "Nominate Project", f"Nominated project '{add_name}' (ID: {add_id}) with {count_subm} category paths")
             st.success(f"Successfully submitted '{add_name}' with {count_subm} category paths for Admin Review & Approval!")
             st.rerun()
 
@@ -1354,6 +1400,7 @@ with admin_tabs[2]:
                             df_live[col] = ""
                     df_live_save = df_live[cols_to_save]
                     df_live_save.to_csv('projects.csv', index=False, encoding='utf-8-sig')
+                    log_event(st.session_state.logged_in_user, "Edit Project", f"Saved modifications to project '{edit_name}' (ID: {sel_proj_id})")
                     st.success("Successfully updated project in database!")
                     st.session_state.edit_reset_key += 1
                     st.rerun()
@@ -1373,18 +1420,75 @@ with admin_tabs[2]:
                         'Remarks': ''
                     }
                     save_row('projects.csv', new_row)
+                    log_event(st.session_state.logged_in_user, "Add Project Path", f"Added new classification path to project '{edit_name}' (ID: {sel_proj_id})")
                     st.success("New classification path added! Scroll down to edit it.")
                     st.rerun()
             with act_col3:
                 if st.button("🚨 DELETE ENTIRE PROJECT", type="primary", use_container_width=True):
                     df_new_live = df_live[df_live['Project ID'] != sel_proj_id]
                     df_new_live.to_csv('projects.csv', index=False)
+                    log_event(st.session_state.logged_in_user, "Delete Project", f"Deleted entire project '{edit_name}' (ID: {sel_proj_id}) from live database")
                     st.warning(f"Deleted project {edit_name} and all its classification paths.")
                     st.session_state.edit_reset_key += 1
                     st.rerun()
 
-# TAB 4: BACKUPS & CSV OPERATIONS
+# TAB 4: ACTIVITY LOGBOOK
 with admin_tabs[3]:
+    st.markdown("### 📊 User Activity Logbook")
+    st.write("Track portal authentication, votes, database changes, and IP addresses.")
+    
+    log_file = "login_logbook.csv"
+    if os.path.exists(log_file):
+        try:
+            log_df = pd.read_csv(log_file, encoding='utf-8')
+            if not log_df.empty:
+                # Sort by Timestamp descending so latest logs are at the top
+                log_df = log_df.sort_values(by="Timestamp", ascending=False)
+                
+                # Filters
+                col1, col2 = st.columns(2)
+                with col1:
+                    filter_user = st.selectbox("Filter by User", ["All"] + list(log_df["User"].unique()))
+                with col2:
+                    filter_event = st.selectbox("Filter by Event Type", ["All"] + list(log_df["Event"].unique()))
+                
+                filtered_log_df = log_df.copy()
+                if filter_user != "All":
+                    filtered_log_df = filtered_log_df[filtered_log_df["User"] == filter_user]
+                if filter_event != "All":
+                    filtered_log_df = filtered_log_df[filtered_log_df["Event"] == filter_event]
+                
+                st.dataframe(filtered_log_df, use_container_width=True, hide_index=True)
+                
+                col_actions1, col_actions2 = st.columns([4, 1])
+                with col_actions1:
+                    log_csv = log_df.to_csv(index=False, encoding='utf-8-sig')
+                    st.download_button(
+                        label="📥 Download Full Logbook (CSV)",
+                        data=log_csv,
+                        file_name="login_logbook.csv",
+                        mime="text/csv",
+                        use_container_width=True,
+                        on_click=log_event,
+                        args=(st.session_state.logged_in_user, "Backup Export", "Downloaded login_logbook.csv")
+                    )
+                with col_actions2:
+                    if st.button("🧹 Clear Logs", type="primary", use_container_width=True, help="Clear all entries in the logbook"):
+                        with open(log_file, "w", newline="", encoding="utf-8") as f:
+                            writer = csv.writer(f)
+                            writer.writerow(["Timestamp", "User", "IP Address", "Event", "Details"])
+                        log_event(st.session_state.logged_in_user, "Clear Logs", "Logbook was cleared by user")
+                        st.success("Logbook cleared!")
+                        st.rerun()
+            else:
+                st.info("Logbook is empty.")
+        except Exception as e:
+            st.error(f"Error loading logbook: {e}")
+    else:
+        st.info("No logs recorded yet.")
+
+# TAB 5: BACKUPS & CSV OPERATIONS
+with admin_tabs[4]:
     st.markdown("### 💾 Database Backup & Import Tools")
     
     st.markdown("#### 📤 Export Database")
@@ -1402,7 +1506,9 @@ with admin_tabs[3]:
                 data=csv_proj,
                 file_name="projects.csv",
                 mime="text/csv",
-                use_container_width=True
+                use_container_width=True,
+                on_click=log_event,
+                args=(st.session_state.logged_in_user, "Backup Export", "Downloaded projects.csv")
             )
     with dl_col2:
         if not df_dl_queue.empty:
@@ -1412,7 +1518,9 @@ with admin_tabs[3]:
                 data=csv_q,
                 file_name="review_queue.csv",
                 mime="text/csv",
-                use_container_width=True
+                use_container_width=True,
+                on_click=log_event,
+                args=(st.session_state.logged_in_user, "Backup Export", "Downloaded review_queue.csv")
             )
             
     st.divider()
@@ -1444,6 +1552,7 @@ with admin_tabs[3]:
             
             if st.button("⚠️ CONFIRM & OVERWRITE LIVE DATABASE", type="primary", use_container_width=True):
                 uploaded_df.to_csv('projects.csv', index=False, encoding='utf-8-sig')
+                log_event(st.session_state.logged_in_user, "Database Import", f"Imported/Overwrote database with {len(uploaded_df)} records")
                 st.success("Live database successfully updated!")
                 st.rerun()
         except Exception as e:
