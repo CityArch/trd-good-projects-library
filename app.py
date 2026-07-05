@@ -22,8 +22,13 @@ img_base64 = get_base64_image("image.jpg")
 # --- HELPER: GET CLIENT IP & LOG EVENTS ---
 def get_client_ip():
     try:
-        from streamlit.web.server.websocket_headers import _get_websocket_headers
-        headers = _get_websocket_headers()
+        headers = {}
+        if hasattr(st, "context") and hasattr(st.context, "headers"):
+            headers = st.context.headers
+        else:
+            from streamlit.web.server.websocket_headers import _get_websocket_headers
+            headers = _get_websocket_headers()
+            
         if headers:
             ip = headers.get("X-Forwarded-For")
             if ip:
