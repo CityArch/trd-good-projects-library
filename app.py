@@ -827,7 +827,7 @@ for i, iteration in enumerate(st.session_state.multi_iterations):
                     return option
                 has_l3 = bool(TREE_DATA.get(cur_l1, {}).get(option))
                 if has_l3:
-                    return make_unicode_bold(option)
+                    return make_unicode_bold(option) + "*"
                 return option
                 
             l2_label = f":{c_color}[{c_emoji} L2 - {c_name}]"
@@ -1218,7 +1218,7 @@ with admin_tabs[1]:
             def format_l2_widget(option):
                 has_l3 = bool(TREE_DATA.get(l1, {}).get(option))
                 if has_l3:
-                    return make_unicode_bold(option)
+                    return make_unicode_bold(option) + "*"
                 return option
                 
             l2_label = f"[{c_emoji}]({c_url}) :{c_color}[Select Level 2 Categories under {c_name} *]"
@@ -1326,7 +1326,7 @@ with admin_tabs[2]:
                         def format_l2_edit(option):
                             has_l3 = bool(TREE_DATA.get(row_l1, {}).get(option))
                             if has_l3:
-                                return make_unicode_bold(option)
+                                return make_unicode_bold(option) + "*"
                             return option
                             
                         row_l2 = st.selectbox(
