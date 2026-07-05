@@ -836,7 +836,7 @@ ZAP
 # --- 4. ADMIN CONTROL CENTER ---
 st.divider()
 st.subheader("🔑 Administrative Control Center")
-admin_tabs = st.tabs(["📋 Review Queue", "➕ Add New Project", "✏️ Edit / Delete Database", "💾 Backup & CSV Tools"])
+admin_tabs = st.tabs(["📋 Review Queue", "➕ Nominate a Good Project", "✏️ Edit / Delete Database", "💾 Backup & CSV Tools"])
 
 # TAB 1: REVIEW QUEUE
 with admin_tabs[0]:
@@ -960,7 +960,7 @@ with admin_tabs[0]:
 
 # TAB 2: ADD NEW ENTRY
 with admin_tabs[1]:
-    st.markdown("### ➕ Add New Database Entry")
+    st.markdown("### ➕ Nominate a Good Project")
     add_name = st.text_input("Project Name *", placeholder="e.g., Queens Plaza Residential", key="add_name")
     add_id = st.text_input("Project ID / ULURP Number *", placeholder="e.g., N210045ZRK", key="add_id")
     add_year = st.text_input("Certification Year (Cert Year)", placeholder="e.g., 2024 or 21-Sep", key="add_year")
