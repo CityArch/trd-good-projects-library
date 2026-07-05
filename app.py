@@ -855,43 +855,74 @@ with admin_tabs[0]:
     else:
         for i, row in pending_df.iterrows():
             with st.container(border=True):
-                col_info, col_actions = st.columns([3, 1])
-                with col_info:
-                    st.markdown(f"**Project:** {row['Project']} | **ID:** {row['Project ID']} | **Year:** {row.get('Cert Year', row.get('Cert Date', ''))}")
-                    l3s = [str(row[c]).strip() for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if str(row[c]).strip() and str(row[c]).lower() not in ["", "nan", "--"]]
-                    chain = f"{row['Level1']} > {row['Level2']}" + (f" > {', '.join(l3s)}" if l3s else "")
-                    st.markdown(f"<span class='badge badge-l1-use'>{chain}</span>", unsafe_allow_html=True)
+                st.markdown(f"**Project:** {row['Project']} | **ID:** {row['Project ID']} | **Year:** {row.get('Cert Year', row.get('Cert Date', ''))}")
+                l3s = [str(row[c]).strip() for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if str(row[c]).strip() and str(row[c]).lower() not in ["", "nan", "--"]]
+                chain = f"{row['Level1']} > {row['Level2']}" + (f" > {', '.join(l3s)}" if l3s else "")
+                st.markdown(f"<span class='badge badge-l1-use'>{chain}</span>", unsafe_allow_html=True)
+                
+                desc_val = str(row.get('Project Desc.', '')).strip()
+                if desc_val and desc_val.lower() not in ["", "nan", "none"]:
+                    st.markdown(f"**Description:** {desc_val}")
+                
+                zr_val = str(row.get('ZR Section', row.get('ZR Sections', ''))).strip()
+                sample_val = str(row.get('Sample Categories', '')).strip()
+                if zr_val and zr_val.lower() not in ["", "nan", "none"]:
+                    st.markdown(f"**ZR Section:** `{zr_val}`")
+                if sample_val and sample_val.lower() not in ["", "nan", "none"]:
+                    st.markdown(f"**Sample Categories:** `{sample_val}`")
                     
-                    desc_val = str(row.get('Project Desc.', '')).strip()
-                    if desc_val and desc_val.lower() not in ["", "nan", "none"]:
-                        st.markdown(f"**Description:** {desc_val}")
-                    
-                    zr_val = str(row.get('ZR Section', row.get('ZR Sections', ''))).strip()
-                    sample_val = str(row.get('Sample Categories', '')).strip()
-                    if zr_val and zr_val.lower() not in ["", "nan", "none"]:
-                        st.markdown(f"**ZR Section:** `{zr_val}`")
-                    if sample_val and sample_val.lower() not in ["", "nan", "none"]:
-                        st.markdown(f"**Sample Categories:** `{sample_val}`")
-                        
-                    if row.get('Remarks', '').strip():
-                        st.markdown(f"<div class='remarks-box'><b>Remarks:</b> {row['Remarks']}</div>", unsafe_allow_html=True)
-                with col_actions:
-                    btn_col1, btn_col2 = st.columns(2)
-                    with btn_col1:
-                        approve_disabled = (num_approved >= 10)
-                        if st.button("✅ Approve", key=f"appr_{i}", use_container_width=True, disabled=approve_disabled, help="Approve this submission (max 10 allowed)"):
-                            q_df_live = load_csv_safe('review_queue.csv')
-                            q_df_live.at[i, 'Status'] = 'Approved'
-                            q_df_live.to_csv('review_queue.csv', index=False, encoding='utf-8-sig')
-                            st.success(f"Approved '{row['Project']}'! It is now in the Approved Projects list.")
-                            st.rerun()
-                    with btn_col2:
-                        if st.button("🗑️ Delete", key=f"rej_{i}", use_container_width=True):
-                            q_df_live = load_csv_safe('review_queue.csv')
-                            q_df_live = q_df_live.drop(i)
-                            q_df_live.to_csv('review_queue.csv', index=False, encoding='utf-8-sig')
-                            st.warning(f"Removed '{row['Project']}' from queue.")
-                            st.rerun()
+                if row.get('Remarks', '').strip():
+                    st.markdown(f"<div class='remarks-box'><b>Remarks:</b> {row['Remarks']}</div>", unsafe_allow_html=True)
+                
+                st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
+                
+                # Feedback boxes for PM, TL, DD, D
+                st.markdown("**Submissions Feedback / Votes**")
+                vote_cols = st.columns(4)
+                roles = [("PM", "Project Manager"), ("TL", "Team Lead"), ("DD", "Deputy Director"), ("D", "Director")]
+                
+                for r_idx, (role_init, role_name) in enumerate(roles):
+                    with vote_cols[r_idx]:
+                        with st.container(border=True):
+                            st.markdown(f"<div style='text-align: center; font-weight: bold; font-size: 0.95rem; margin-bottom: 8px; color: #FFFFFF;'>{role_init}</div>", unsafe_allow_html=True)
+                            
+                            like_key = f"vote_{role_init}_like_{i}"
+                            dislike_key = f"vote_{role_init}_dislike_{i}"
+                            
+                            if like_key not in st.session_state: st.session_state[like_key] = False
+                            if dislike_key not in st.session_state: st.session_state[dislike_key] = False
+                            
+                            sym_col1, sym_col2 = st.columns(2)
+                            with sym_col1:
+                                if st.button("👍", key=f"btn_like_{role_init}_{i}", type="primary" if st.session_state[like_key] else "secondary", use_container_width=True):
+                                    st.session_state[like_key] = not st.session_state[like_key]
+                                    st.session_state[dislike_key] = False
+                                    st.rerun()
+                            with sym_col2:
+                                if st.button("👎", key=f"btn_dislike_{role_init}_{i}", type="primary" if st.session_state[dislike_key] else "secondary", use_container_width=True):
+                                    st.session_state[dislike_key] = not st.session_state[dislike_key]
+                                    st.session_state[like_key] = False
+                                    st.rerun()
+                                    
+                st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
+                
+                # Relocate Approve and Delete buttons below the boxes
+                btn_col1, btn_col2 = st.columns(2)
+                with btn_col1:
+                    approve_disabled = (num_approved >= 10)
+                    if st.button("✅ Approve", key=f"appr_{i}", use_container_width=True, disabled=approve_disabled, help="Approve this submission (max 10 allowed)"):
+                        q_df_live = load_csv_safe('review_queue.csv')
+                        q_df_live.at[i, 'Status'] = 'Approved'
+                        q_df_live.to_csv('review_queue.csv', index=False, encoding='utf-8-sig')
+                        st.success(f"Approved '{row['Project']}'! It is now in the Approved Projects list.")
+                        st.rerun()
+                with btn_col2:
+                    if st.button("🗑️ Delete", key=f"rej_{i}", use_container_width=True):
+                        q_df_live = load_csv_safe('review_queue.csv')
+                        q_df_live = q_df_live.drop(i)
+                        q_df_live.to_csv('review_queue.csv', index=False, encoding='utf-8-sig')
+                        st.warning(f"Removed '{row['Project']}' from queue.")
+                        st.rerun()
                             
     # 2. APPROVED PROJECTS LIST (MAX 10)
     st.divider()
