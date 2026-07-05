@@ -570,14 +570,34 @@ if not st.session_state.password_correct:
 <h2 style="margin: 0; color: #FFFFFF; font-size: 1.8rem; font-family: 'Outfit';">TRD GOOD PROJECTS</h2>
 <p style="color: #94A3B8; margin-top: 5px; margin-bottom: 25px; font-size: 0.9rem;">Digital Database Portal</p>""", unsafe_allow_html=True)
     
-    with st.form("login"):
-        pw = st.text_input("Access Passcode", type="password", help="Enter portal security passcode.")
-        if st.form_submit_button("UNLOCK DATABASE", use_container_width=True):
-            if pw == "1234567890":
-                st.session_state.password_correct = True
-                st.rerun()
-            else: 
-                st.error("Invalid passcode. Access Denied.")
+    USERS = [
+        "Steven Lenards (D)",
+        "Kenny Ramnarine (DD)",
+        "Abraham Abreu (CM-TL)",
+        "Joenette Cobb (CM-S)",
+        "Claire Ogilvie-Laing (TL)",
+        "Harun Ekinoglu (PM)",
+        "Andrew English (CM-STA)",
+        "Samuel Gillem (TL)",
+        "Marina Guimaraes (PM)",
+        "Juanita Halim (PM)",
+        "Chaim Simon (CM-S)",
+        "Giuliana Tellez (PM)"
+    ]
+    
+    selected_user = st.selectbox("Select User Name", ["--"] + USERS, key="login_user")
+    if selected_user != "--":
+        with st.form("login"):
+            pw = st.text_input("Access Passcode", type="password", help=f"Enter portal security passcode for {selected_user}.")
+            if st.form_submit_button("LOG IN", use_container_width=True):
+                if pw == "1234567890":
+                    st.session_state.password_correct = True
+                    st.session_state.logged_in_user = selected_user
+                    st.rerun()
+                else: 
+                    st.error("Invalid passcode. Access Denied.")
+    else:
+        st.info("Select your name from the list above to enter passcode.")
                 
     st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
@@ -647,6 +667,10 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # --- 1. SIDEBAR CONFIG ---
+if "logged_in_user" in st.session_state:
+    st.sidebar.markdown(f"👤 **Active User:**\n`{st.session_state.logged_in_user}`")
+    st.sidebar.markdown("---")
+
 st.sidebar.markdown("### 🛠️ CONFIGURATION")
 search_mode = st.sidebar.radio("SEARCH MODE", ["Single-Action Search", "Multi-Action Search"], key=f"mode_{st.session_state.search_reset_key}")
 
