@@ -595,7 +595,7 @@ if not st.session_state.password_correct:
         "Abraham Abreu (CM-TL)": "AABREU@Planning.nyc.gov",
         "Joenette Cobb (CM-S)": "JCobb@planning.nyc.gov",
         "Claire Ogilvie-Laing (TL)": "COgilvie-Laing@planning.nyc.gov",
-        "Harun Ekinoglu (PM)": "HEKINOGlu@planning.nyc.gov",
+        "Harun Ekinoglu (PM)": "hekinoglu@planning.nyc.goc",
         "Andrew English (CM-STA)": "AENGLIS@planning.nyc.gov",
         "Samuel Gillem (TL)": "SGILLEM@planning.nyc.gov",
         "Marina Guimaraes (PM)": "MGuimaraes@planning.nyc.gov",
