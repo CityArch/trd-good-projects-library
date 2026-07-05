@@ -563,70 +563,130 @@ def save_row(file_path, data_dict):
         writer.writerow(row_data)
 
 # --- AUTHENTICATION ---
-import hashlib
+import requests
+import random
+import string
 
-def get_user_secret_key(username):
-    clean = "".join([c.lower() if c.isalnum() else "_" for c in username.split("(")[0].strip()])
-    return clean.strip("_")
+# Define user email mappings
+USER_EMAILS = {
+    "Steven Lenards (D)": "SLENARD@planning.nyc.gov",
+    "Kenny Ramnarine (DD)": "KRAMNAR@planning.nyc.gov",
+    "Abraham Abreu (CM-TL)": "AABREU@Planning.nyc.gov",
+    "Joenette Cobb (CM-S)": "JCobb@planning.nyc.gov",
+    "Claire Ogilvie-Laing (TL)": "COgilvie-Laing@planning.nyc.gov",
+    "Harun Ekinoglu (PM)": "hekinoglu@planning.nyc.goc",
+    "Andrew English (CM-STA)": "AENGLIS@planning.nyc.gov",
+    "Samuel Gillem (TL)": "SGILLEM@planning.nyc.gov",
+    "Marina Guimaraes (PM)": "MGuimaraes@planning.nyc.gov",
+    "Juanita Halim (PM)": "JHalim@planning.nyc.gov",
+    "Chaim Simon (CM-S)": "CSimon@planning.nyc.gov",
+    "Giuliana Tellez (PM)": "GTellez@planning.nyc.gov"
+}
+
+# Fetch Microsoft credentials from secrets securely
+try:
+    client_id = st.secrets.get("MICROSOFT_CLIENT_ID", "")
+    client_secret = st.secrets.get("MICROSOFT_CLIENT_SECRET", "")
+    tenant_id = st.secrets.get("MICROSOFT_TENANT_ID", "common")
+    redirect_uri = st.secrets.get("MICROSOFT_REDIRECT_URI", "http://localhost:8501/")
+except Exception:
+    client_id = ""
+    client_secret = ""
+    tenant_id = "common"
+    redirect_uri = "http://localhost:8501/"
 
 if "password_correct" not in st.session_state: st.session_state.password_correct = False
+if "oauth_state" not in st.session_state: 
+    st.session_state.oauth_state = "".join(random.choices(string.ascii_letters + string.digits, k=16))
+
+# Check for query parameters returned by Microsoft OAuth
+code = st.query_params.get("code")
+state = st.query_params.get("state")
+
+if code and not st.session_state.password_correct:
+    token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
+    data = {
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "code": code,
+        "redirect_uri": redirect_uri,
+        "grant_type": "authorization_code"
+    }
+    try:
+        res = requests.post(token_url, data=data)
+        if res.status_code == 200:
+            token_data = res.json()
+            access_token = token_data.get("access_token")
+            
+            # Fetch user details
+            user_res = requests.get(
+                "https://graph.microsoft.com/v1.0/me",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            if user_res.status_code == 200:
+                user_info = user_res.json()
+                email = user_info.get("mail") or user_info.get("userPrincipalName", "")
+                email_clean = email.strip().lower()
+                
+                # Match email to authorized users, treating .goc and .gov interchangeably
+                matched_user = None
+                for username, u_email in USER_EMAILS.items():
+                    if u_email.strip().lower().replace(".goc", ".gov") == email_clean.replace(".goc", ".gov"):
+                        matched_user = username
+                        break
+                        
+                if matched_user:
+                    st.session_state.password_correct = True
+                    st.session_state.logged_in_user = matched_user
+                    # Clear query params
+                    st.query_params.clear()
+                    st.rerun()
+                else:
+                    st.error(f"Access Denied: Microsoft account email '{email}' is not authorized to access this portal.")
+            else:
+                st.error("Failed to retrieve profile from Microsoft Graph API.")
+        else:
+            st.error("Failed to authenticate with Microsoft OAuth server.")
+    except Exception as e:
+        st.error(f"An error occurred during authentication: {e}")
+
 if not st.session_state.password_correct:
     st.markdown("""<div class="login-container">
 <div style="font-size: 3.5rem; margin-bottom: 10px;">🏙️</div>
 <h2 style="margin: 0; color: #FFFFFF; font-size: 1.8rem; font-family: 'Outfit';">TRD GOOD PROJECTS</h2>
 <p style="color: #94A3B8; margin-top: 5px; margin-bottom: 25px; font-size: 0.9rem;">Digital Database Portal</p>""", unsafe_allow_html=True)
     
-    USERS = [
-        "Steven Lenards (D)",
-        "Kenny Ramnarine (DD)",
-        "Abraham Abreu (CM-TL)",
-        "Joenette Cobb (CM-S)",
-        "Claire Ogilvie-Laing (TL)",
-        "Harun Ekinoglu (PM)",
-        "Andrew English (CM-STA)",
-        "Samuel Gillem (TL)",
-        "Marina Guimaraes (PM)",
-        "Juanita Halim (PM)",
-        "Chaim Simon (CM-S)",
-        "Giuliana Tellez (PM)"
-    ]
-    
-    selected_user = st.selectbox("Select User Name", ["--"] + USERS, key="login_user")
-    
-    if selected_user != "--":
-        user_key = get_user_secret_key(selected_user)
-        stored_hash = ""
-        try:
-            stored_hash = st.secrets.get("passwords", {}).get(user_key, "")
-        except Exception:
-            pass
-            
-        with st.form("login"):
-            pw = st.text_input("Enter Passcode", type="password", help=f"Enter secure passcode for {selected_user}.")
-            if st.form_submit_button("LOG IN", use_container_width=True):
-                if stored_hash:
-                    # Validate using cryptographic SHA-256 hash
-                    entered_hash = hashlib.sha256(pw.encode('utf-8')).hexdigest()
-                    if entered_hash == stored_hash:
-                        st.session_state.password_correct = True
-                        st.session_state.logged_in_user = selected_user
-                        st.rerun()
-                    else: 
-                        st.error("Invalid passcode. Access Denied.")
-                else:
-                    # Fallback developer mode
+    if client_id and client_secret:
+        # Microsoft SSO mode
+        auth_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/authorize?client_id={client_id}&response_type=code&redirect_uri={redirect_uri}&scope=User.Read&response_mode=query&state={st.session_state.oauth_state}"
+        
+        microsoft_button_html = f"""
+        <a href="{auth_url}" target="_self" style="text-decoration: none;">
+            <div style="background-color: #0078d4; color: white; padding: 12px 20px; border-radius: 8px; font-family: 'Outfit', sans-serif; font-weight: 600; text-align: center; margin-top: 15px; margin-bottom: 15px; cursor: pointer; transition: background-color 0.2s; box-shadow: 0 4px 12px rgba(0, 120, 212, 0.25);">
+                🔑 Sign In with Microsoft
+            </div>
+        </a>
+        """
+        st.markdown(microsoft_button_html, unsafe_allow_html=True)
+        st.info("Log in with your official NYC planning.nyc.gov email account.")
+    else:
+        # Fallback Developer/Offline Mode
+        USERS = list(USER_EMAILS.keys())
+        selected_user = st.selectbox("Select User Name (Dev Mode)", ["--"] + USERS, key="login_user")
+        if selected_user != "--":
+            with st.form("login"):
+                pw = st.text_input("Enter Passcode", type="password", help=f"Enter secure passcode for {selected_user}.")
+                if st.form_submit_button("LOG IN", use_container_width=True):
                     if pw == "1234567890":
                         st.session_state.password_correct = True
                         st.session_state.logged_in_user = selected_user
                         st.rerun()
                     else:
                         st.error("Invalid passcode. Access Denied. (Dev Mode: use '1234567890')")
-                        
-        if not stored_hash:
-            st.warning("⚠️ User passcodes are not configured in secrets.toml. Running in Dev Mode.")
-    else:
-        st.info("Select your name from the list above to verify identity.")
-                
+        else:
+            st.info("Select a user name above to log in.")
+        st.warning("⚠️ Microsoft SSO is not configured in secrets.toml. Running in offline Dev Mode.")
+        
     st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
 
