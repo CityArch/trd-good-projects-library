@@ -757,6 +757,10 @@ st.markdown(f"""
 # --- 1. SIDEBAR CONFIG ---
 if "logged_in_user" in st.session_state:
     st.sidebar.markdown(f"👤 **Active User:**\n`{st.session_state.logged_in_user}`")
+    if st.sidebar.button("🚪 LOG OUT", key="logout_btn", use_container_width=True):
+        st.session_state.password_correct = False
+        st.session_state.pop("logged_in_user", None)
+        st.rerun()
     st.sidebar.markdown("---")
 
 st.sidebar.markdown("### 🛠️ CONFIGURATION")
