@@ -1019,7 +1019,8 @@ with admin_tabs[0]:
     else:
         for i, row in pending_df.iterrows():
             with st.container(border=True):
-                st.markdown(f"**Project:** {row['Project']} | **ID:** {row['Project ID']} | **Year:** {row.get('Cert Year', row.get('Cert Date', ''))}")
+                nominator_str = f" *(entered by {row['Nominator']})*" if str(row.get('Nominator', '')).strip() else ""
+                st.markdown(f"**Project:** {row['Project']}{nominator_str} | **ID:** {row['Project ID']} | **Year:** {row.get('Cert Year', row.get('Cert Date', ''))}")
                 l3s = [str(row[c]).strip() for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if str(row[c]).strip() and str(row[c]).lower() not in ["", "nan", "--"]]
                 chain = f"{row['Level1']} > {row['Level2']}" + (f" > {', '.join(l3s)}" if l3s else "")
                 st.markdown(f"<span class='badge badge-l1-use'>{chain}</span>", unsafe_allow_html=True)
@@ -1153,7 +1154,8 @@ with admin_tabs[0]:
             with st.container(border=True):
                 col_info, col_actions = st.columns([3, 1])
                 with col_info:
-                    st.markdown(f"✅ **{row['Project']}** (ID: {row['Project ID']}) | **Year:** {row.get('Cert Year', row.get('Cert Date', ''))}")
+                    nominator_str = f" *(entered by {row['Nominator']})*" if str(row.get('Nominator', '')).strip() else ""
+                    st.markdown(f"✅ **{row['Project']}**{nominator_str} (ID: {row['Project ID']}) | **Year:** {row.get('Cert Year', row.get('Cert Date', ''))}")
                     l3s = [str(row[c]).strip() for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if str(row[c]).strip() and str(row[c]).lower() not in ["", "nan", "--"]]
                     chain = f"{row['Level1']} > {row['Level2']}" + (f" > {', '.join(l3s)}" if l3s else "")
                     st.markdown(f"<span class='badge badge-l1-bulk'>{chain}</span>", unsafe_allow_html=True)
