@@ -628,10 +628,16 @@ if not st.session_state.password_correct:
                 st.session_state.otp_sent_to = selected_user
                 
                 # Fetch SMTP credentials from Streamlit secrets securely
-                smtp_server = st.secrets.get("SMTP_SERVER", "")
-                smtp_port = st.secrets.get("SMTP_PORT", 587)
-                smtp_user = st.secrets.get("SMTP_USER", "")
-                smtp_password = st.secrets.get("SMTP_PASSWORD", "")
+                try:
+                    smtp_server = st.secrets.get("SMTP_SERVER", "")
+                    smtp_port = st.secrets.get("SMTP_PORT", 587)
+                    smtp_user = st.secrets.get("SMTP_USER", "")
+                    smtp_password = st.secrets.get("SMTP_PASSWORD", "")
+                except Exception:
+                    smtp_server = ""
+                    smtp_port = 587
+                    smtp_user = ""
+                    smtp_password = ""
                 
                 if smtp_server and smtp_user:
                     try:
@@ -674,7 +680,13 @@ TRD Good Projects Database Portal"""
                     resend_btn = st.form_submit_button("🔄 RESEND", use_container_width=True)
                     
                 if login_btn:
-                    if pw == st.session_state.email_otp or (pw == "1234567890" and not st.secrets.get("SMTP_SERVER")):
+                    has_smtp = False
+                    try:
+                        has_smtp = bool(st.secrets.get("SMTP_SERVER"))
+                    except Exception:
+                        pass
+                        
+                    if pw == st.session_state.email_otp or (pw == "1234567890" and not has_smtp):
                         st.session_state.password_correct = True
                         st.session_state.logged_in_user = selected_user
                         st.rerun()
