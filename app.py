@@ -219,14 +219,14 @@ st.markdown(f"""
 
     /* Clickable Metric Buttons */
     div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] div.stButton button {{
-        background: linear-gradient(135deg, rgba(14, 165, 233, 0.25) 0%, rgba(3, 105, 161, 0.35) 100%) !important;
-        border: 1px solid rgba(56, 189, 248, 0.35) !important;
+        background: #1E40AF !important;
+        border: 1px solid #3B82F6 !important;
         color: #FFFFFF !important;
     }}
     
     div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] div.stButton button:hover {{
-        border-color: rgba(56, 189, 248, 0.7) !important;
-        background: linear-gradient(135deg, rgba(14, 165, 233, 0.4) 0%, rgba(3, 105, 161, 0.5) 100%) !important;
+        background: #2563EB !important;
+        border-color: #60A5FA !important;
     }}
     
     div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] div.stButton button::first-line {{
