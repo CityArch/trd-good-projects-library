@@ -216,6 +216,73 @@ st.markdown(f"""
         background: rgba(30, 41, 59, 0.55);
         transform: translateY(-2px);
     }}
+
+    /* Clickable Metric Buttons */
+    .metric-btn div[data-testid="stButton"] button {{
+        background: rgba(30, 41, 59, 0.35) !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        padding: 14px 10px !important;
+        border-radius: 12px !important;
+        text-align: center !important;
+        color: #94A3B8 !important;
+        font-size: 0.72rem !important;
+        font-weight: 600 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.08em !important;
+        font-family: "Outfit", sans-serif !important;
+        white-space: pre-wrap !important;
+        line-height: 1.25 !important;
+        height: 95px !important;
+        width: 100% !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15) !important;
+    }}
+    
+    .metric-btn div[data-testid="stButton"] button:hover {{
+        border-color: rgba(99, 102, 241, 0.35) !important;
+        background: rgba(30, 41, 59, 0.55) !important;
+        transform: translateY(-2px) !important;
+    }}
+    
+    .metric-btn div[data-testid="stButton"] button::first-line {{
+        font-size: 1.8rem !important;
+        font-weight: 800 !important;
+        text-transform: none !important;
+        letter-spacing: normal !important;
+    }}
+    
+    .metric-total div[data-testid="stButton"] button::first-line {{
+        color: #FFFFFF !important;
+    }}
+    .metric-use div[data-testid="stButton"] button::first-line {{
+        color: #34D399 !important;
+    }}
+    .metric-bulk div[data-testid="stButton"] button::first-line {{
+        color: #818CF8 !important;
+    }}
+    .metric-space div[data-testid="stButton"] button::first-line {{
+        color: #38BDF8 !important;
+    }}
+    .metric-queue div[data-testid="stButton"] button::first-line {{
+        color: #FBBF24 !important;
+    }}
+    
+    /* Close Button Style */
+    div.close-btn div[data-testid="stButton"] button {{
+        background: transparent !important;
+        border: none !important;
+        color: #94A3B8 !important;
+        font-size: 1.25rem !important;
+        padding: 0 !important;
+        height: auto !important;
+        width: auto !important;
+        float: right !important;
+        transition: color 0.3s ease !important;
+    }}
+    div.close-btn div[data-testid="stButton"] button:hover {{
+        color: #EF4444 !important;
+        background: transparent !important;
+    }}
     
     .metric-value {{
         font-size: 1.8rem;
@@ -725,30 +792,104 @@ if os.path.exists('review_queue.csv'):
     except:
         pass
 
-st.markdown(f"""
-<div class="metrics-grid">
-    <div class="metric-card">
-        <div class="metric-value">{total_projects}</div>
-        <div class="metric-label">Total Projects</div>
-    </div>
-    <div class="metric-card">
-        <div class="metric-value" style="color: #34D399;">{use_waivers_cnt}</div>
-        <div class="metric-label">Use Waivers</div>
-    </div>
-    <div class="metric-card">
-        <div class="metric-value" style="color: #818CF8;">{bulk_waivers_cnt}</div>
-        <div class="metric-label">Bulk Waivers</div>
-    </div>
-    <div class="metric-card">
-        <div class="metric-value" style="color: #38BDF8;">{open_space_cnt}</div>
-        <div class="metric-label">Open Spaces</div>
-    </div>
-    <div class="metric-card">
-        <div class="metric-value" style="color: #FBBF24;">{q_df_cnt}</div>
-        <div class="metric-label">Pending Queue</div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+# Render stats boxes as clickable buttons
+col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
+
+with col_m1:
+    st.markdown('<div class="metric-btn metric-total">', unsafe_allow_html=True)
+    if st.button(f"{total_projects}\nTotal Projects", key="btn_metric_total", use_container_width=True):
+        st.session_state.active_metric_view = "Total Projects"
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with col_m2:
+    st.markdown('<div class="metric-btn metric-use">', unsafe_allow_html=True)
+    if st.button(f"{use_waivers_cnt}\nUse Waivers", key="btn_metric_use", use_container_width=True):
+        st.session_state.active_metric_view = "Use Waivers"
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with col_m3:
+    st.markdown('<div class="metric-btn metric-bulk">', unsafe_allow_html=True)
+    if st.button(f"{bulk_waivers_cnt}\nBulk Waivers", key="btn_metric_bulk", use_container_width=True):
+        st.session_state.active_metric_view = "Bulk Waivers"
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with col_m4:
+    st.markdown('<div class="metric-btn metric-space">', unsafe_allow_html=True)
+    if st.button(f"{open_space_cnt}\nOpen Spaces", key="btn_metric_space", use_container_width=True):
+        st.session_state.active_metric_view = "Open Spaces"
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with col_m5:
+    st.markdown('<div class="metric-btn metric-queue">', unsafe_allow_html=True)
+    if st.button(f"{q_df_cnt}\nPending Queue", key="btn_metric_queue", use_container_width=True):
+        st.session_state.active_metric_view = "Pending Queue"
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# Render projects list if a metric is clicked
+if st.session_state.get("active_metric_view"):
+    view_name = st.session_state.active_metric_view
+    
+    df_view = pd.DataFrame()
+    if view_name == "Pending Queue":
+        if os.path.exists('review_queue.csv'):
+            try:
+                df_q = load_csv_safe('review_queue.csv')
+                if not df_q.empty:
+                    df_view = df_q[df_q['Status'].str.strip().str.lower() == 'pending']
+            except:
+                pass
+    else:
+        if not df_raw.empty:
+            if view_name == "Total Projects":
+                df_view = df_raw.copy()
+            elif view_name == "Use Waivers":
+                df_view = df_raw[df_raw['Level1'] == 'Use_Waivers']
+            elif view_name == "Bulk Waivers":
+                df_view = df_raw[df_raw['Level1'] == 'Bulk_Waivers']
+            elif view_name == "Open Spaces":
+                df_view = df_raw[df_raw['Level1'] == 'Open_Space']
+
+    if not df_view.empty:
+        df_view = df_view.drop_duplicates(subset=['Project ID'])
+        
+    st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+    
+    with st.container(border=True):
+        head_col1, head_col2 = st.columns([15, 1])
+        with head_col1:
+            st.markdown(f"#### 📊 {view_name} List ({len(df_view)} projects)")
+        with head_col2:
+            st.markdown('<div class="close-btn">', unsafe_allow_html=True)
+            if st.button("❌", key="close_metric_view", help="Close list", use_container_width=True):
+                st.session_state.active_metric_view = None
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+                
+        if df_view.empty:
+            st.info("No projects found in this category.")
+        else:
+            for idx, (_, row) in enumerate(df_view.iterrows()):
+                p_name = row.get('Project', 'N/A')
+                p_id = row.get('Project ID', 'N/A')
+                p_zap = str(row.get('Approval Pack/NOC', '')).strip()
+                p_sample = row.get('Sample Categories', 'N/A')
+                p_zr = row.get('ZR Section', row.get('ZR Sections', 'N/A'))
+                
+                # Render item as a list item
+                with st.container(border=True):
+                    item_col1, item_col2 = st.columns([5, 1])
+                    with item_col1:
+                        st.markdown(f"**Project:** {p_name} | **ID:** `{p_id}`")
+                        st.markdown(f"**ZR Section:** `{p_zr}` | **Sample Category:** `{p_sample}`")
+                    with item_col2:
+                        if p_zap and p_zap.lower() not in ["", "nan", "none"]:
+                            st.markdown(f"""
+                            <a href="{p_zap}" target="_blank" class="zap-btn" style="display: block; text-align: center; font-family: 'Inter', sans-serif; font-weight: 600; padding: 8px 0; border-radius: 8px; text-decoration: none; margin-top: 10px;">
+                                ZAP LINK
+                            </a>
+                            """, unsafe_allow_html=True)
+                        else:
+                            st.markdown("<div style='text-align: center; color: #64748B; font-size: 0.85rem; margin-top: 15px;'>No ZAP Link</div>", unsafe_allow_html=True)
 
 # --- 1. SIDEBAR CONFIG ---
 if "logged_in_user" in st.session_state:
