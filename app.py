@@ -219,14 +219,14 @@ st.markdown(f"""
 
     /* Clickable Metric Buttons */
     div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] div.stButton button {{
-        background: #1E40AF !important;
-        border: 1px solid #3B82F6 !important;
+        background: #0EA5E9 !important;
+        border: 1px solid #38BDF8 !important;
         color: #FFFFFF !important;
     }}
     
     div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] div.stButton button:hover {{
-        background: #2563EB !important;
-        border-color: #60A5FA !important;
+        background: #38BDF8 !important;
+        border-color: #7DD3FC !important;
     }}
     
     div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] div.stButton button::first-line {{
