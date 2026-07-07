@@ -1229,88 +1229,11 @@ with admin_tabs[0]:
                 
                 st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
                 
-                # Feedback boxes for PM, TL, DD, D
-                st.markdown("**Submissions Feedback / Votes**")
-                vote_cols = st.columns(4)
-                roles = [("PM", "Project Manager"), ("TL", "Team Lead"), ("DD", "Deputy Director"), ("D", "Director")]
-                
-                current_user_role = get_logged_in_voting_role(st.session_state.get("logged_in_user", ""))
-                nominator = str(row.get('Nominator', '')).strip()
-                
-                for r_idx, (role_init, role_name) in enumerate(roles):
-                    with vote_cols[r_idx]:
-                        with st.container(border=True):
-                            st.markdown(f"<div style='text-align: center; font-weight: bold; font-size: 0.95rem; margin-bottom: 8px; color: #FFFFFF;'>{role_init}</div>", unsafe_allow_html=True)
-                            
-                            current_vote = str(row.get(f'Vote_{role_init}', '')).strip().lower()
-                            is_liked = (current_vote == 'like')
-                            is_disliked = (current_vote == 'dislike')
-                            
-                            # Determine if this specific vote box is clickable/active
-                            role_allowed = (current_user_role == role_init)
-                            not_voted_yet = (current_vote not in ['like', 'dislike'])
-                            is_active = role_allowed and not_voted_yet
-                            
-                            if role_init == "PM":
-                                is_active = is_active and (st.session_state.get("logged_in_user", "") == nominator or nominator == "")
-                                
-                            disabled_flag = not is_active
-                            
-                            sym_col1, sym_col2 = st.columns(2)
-                            with sym_col1:
-                                if st.button("[👍](https://like-btn)", key=f"btn_like_{role_init}_{i}", type="primary" if is_liked else "secondary", use_container_width=True, disabled=disabled_flag):
-                                    new_vote = 'like'
-                                    q_df_live = load_csv_safe('review_queue.csv')
-                                    for role_col in ['Vote_PM', 'Vote_TL', 'Vote_DD', 'Vote_D']:
-                                        if role_col not in q_df_live.columns:
-                                            q_df_live[role_col] = ""
-                                    q_df_live.at[i, f'Vote_{role_init}'] = new_vote
-                                    q_df_live.to_csv('review_queue.csv', index=False, encoding='utf-8-sig')
-                                    log_event(st.session_state.logged_in_user, "Vote Cast", f"Project: '{row['Project']}' (ID: {row['Project ID']}) | Voted {new_vote.upper()} as role {role_init}")
-                                    st.rerun()
-                            with sym_col2:
-                                if st.button("[👎](https://dislike-btn)", key=f"btn_dislike_{role_init}_{i}", type="primary" if is_disliked else "secondary", use_container_width=True, disabled=disabled_flag):
-                                    new_vote = 'dislike'
-                                    q_df_live = load_csv_safe('review_queue.csv')
-                                    for role_col in ['Vote_PM', 'Vote_TL', 'Vote_DD', 'Vote_D']:
-                                        if role_col not in q_df_live.columns:
-                                            q_df_live[role_col] = ""
-                                    q_df_live.at[i, f'Vote_{role_init}'] = new_vote
-                                    q_df_live.to_csv('review_queue.csv', index=False, encoding='utf-8-sig')
-                                    log_event(st.session_state.logged_in_user, "Vote Cast", f"Project: '{row['Project']}' (ID: {row['Project ID']}) | Voted {new_vote.upper()} as role {role_init}")
-                                    st.rerun()
-                                    
-                # Check if D (Director) has voted
-                d_vote = str(row.get('Vote_D', '')).strip().lower()
-                d_voted = (d_vote in ['like', 'dislike'])
-                
-                # Check if all four voted to show the percentage scale
-                votes = []
-                for role_init, _ in roles:
-                    v = str(row.get(f'Vote_{role_init}', '')).strip().lower()
-                    if v in ['like', 'dislike']:
-                        votes.append(v)
-                all_four_voted = (len(votes) == 4)
-                
-                if all_four_voted:
-                    likes_count = votes.count('like')
-                    dislikes_count = votes.count('dislike')
-                    like_pct = (likes_count / 4.0) * 100
-                    dislike_pct = (dislikes_count / 4.0) * 100
-                    
-                    like_block = f'<div style="width: {like_pct}%; background-color: #10B981; height: 100%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.75rem; font-weight: bold;">👍 {like_pct:.0f}%</div>' if likes_count > 0 else ''
-                    dislike_block = f'<div style="width: {dislike_pct}%; background-color: #EF4444; height: 100%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.75rem; font-weight: bold;">👎 {dislike_pct:.0f}%</div>' if dislikes_count > 0 else ''
-                    
-                    scale_html = f'<div style="margin-top: 15px; margin-bottom: 5px;"><span style="font-size: 0.85rem; font-weight: 600; color: #94A3B8; font-family: \'Outfit\';">Like/Dislike Ratio</span><div style="width: 100%; background-color: #1E293B; border-radius: 6px; height: 20px; display: flex; overflow: hidden; margin-top: 4px; border: 1px solid rgba(255,255,255,0.08);">{like_block}{dislike_block}</div></div>'
-                    st.markdown(scale_html, unsafe_allow_html=True)
-                
-                st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
-                
-                # Relocate Approve and Delete buttons below the boxes, active only after all four voted
+                # Approve and Decline buttons (always active, approve limited to max 10)
                 btn_col1, btn_col2 = st.columns(2)
                 with btn_col1:
-                    approve_disabled = (num_approved >= 10) or (not all_four_voted)
-                    approve_help = "Approve this submission (requires votes from PM, TL, DD, and D)" if not all_four_voted else "Approve this submission (max 10 allowed)"
+                    approve_disabled = (num_approved >= 10)
+                    approve_help = "Approve this submission (max 10 allowed)" if not approve_disabled else "Approve limit reached (max 10)"
                     if st.button("✅ Approve", key=f"appr_{i}", use_container_width=True, disabled=approve_disabled, help=approve_help):
                         q_df_live = load_csv_safe('review_queue.csv')
                         q_df_live.at[i, 'Status'] = 'Approved'
@@ -1319,14 +1242,12 @@ with admin_tabs[0]:
                         st.success(f"Approved '{row['Project']}'! It is now in the Approved Projects list.")
                         st.rerun()
                 with btn_col2:
-                    delete_disabled = not all_four_voted
-                    delete_help = "Delete this submission (requires votes from PM, TL, DD, and D)" if not all_four_voted else "Delete this submission from queue"
-                    if st.button("🗑️ Delete", key=f"rej_{i}", use_container_width=True, disabled=delete_disabled, help=delete_help):
+                    if st.button("❌ Decline", key=f"rej_{i}", use_container_width=True, help="Decline and remove this submission from the queue"):
                         q_df_live = load_csv_safe('review_queue.csv')
                         q_df_live = q_df_live.drop(i)
                         q_df_live.to_csv('review_queue.csv', index=False, encoding='utf-8-sig')
-                        log_event(st.session_state.logged_in_user, "Delete Submission", f"Removed project '{row['Project']}' (ID: {row['Project ID']}) from review queue")
-                        st.warning(f"Removed '{row['Project']}' from queue.")
+                        log_event(st.session_state.logged_in_user, "Decline Submission", f"Declined project '{row['Project']}' (ID: {row['Project ID']}) and removed from review queue")
+                        st.warning(f"Declined '{row['Project']}' and removed from queue.")
                         st.rerun()
                             
     # 2. APPROVED PROJECTS LIST (MAX 10)
