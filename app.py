@@ -850,14 +850,17 @@ if st.session_state.get("active_metric_view"):
                 df_view = df_raw[df_raw['Level1'] == 'Open_Space']
 
     if not df_view.empty:
-        df_view = df_view.drop_duplicates(subset=['Project ID'])
+        # Deduplicate the IDs to get the counts and iterate
+        unique_project_ids = list(df_view['Project ID'].dropna().unique())
+    else:
+        unique_project_ids = []
         
     st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
     
     with st.container(border=True):
         head_col1, head_col2 = st.columns([15, 1])
         with head_col1:
-            st.markdown(f"#### 📊 {view_name} List ({len(df_view)} projects)")
+            st.markdown(f"#### 📊 {view_name} List ({len(unique_project_ids)} projects)")
         with head_col2:
             st.markdown('<div class="close-btn">', unsafe_allow_html=True)
             if st.button("❌", key="close_metric_view", help="Close list", use_container_width=True):
@@ -865,22 +868,47 @@ if st.session_state.get("active_metric_view"):
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
                 
-        if df_view.empty:
+        if not unique_project_ids:
             st.info("No projects found in this category.")
         else:
-            for idx, (_, row) in enumerate(df_view.iterrows()):
-                p_name = row.get('Project', 'N/A')
-                p_id = row.get('Project ID', 'N/A')
-                p_zap = str(row.get('Approval Pack/NOC', '')).strip()
-                p_sample = row.get('Sample Categories', 'N/A')
-                p_zr = row.get('ZR Section', row.get('ZR Sections', 'N/A'))
+            for idx, p_id in enumerate(unique_project_ids):
+                # Retrieve the full set of rows for this project ID from the source dataframe
+                if view_name == "Pending Queue":
+                    df_queue_src = load_csv_safe('review_queue.csv')
+                    gp_proj = df_queue_src[df_queue_src['Project ID'] == p_id] if not df_queue_src.empty else df_view[df_view['Project ID'] == p_id]
+                else:
+                    gp_proj = df_raw[df_raw['Project ID'] == p_id] if not df_raw.empty else df_view[df_view['Project ID'] == p_id]
+                
+                r1 = gp_proj.iloc[0]
+                p_name = r1.get('Project', 'N/A')
+                p_zap = str(r1.get('Approval Pack/NOC', '')).strip()
+                
+                # Get unique sample categories
+                samples = []
+                for s in gp_proj['Sample Categories'].dropna().unique():
+                    s_clean = str(s).strip()
+                    if s_clean and s_clean.lower() not in ["", "nan", "none", "--"]:
+                        if s_clean not in samples:
+                            samples.append(s_clean)
+                p_sample = ", ".join(samples) if samples else "N/A"
+                
+                # Get unique ZR sections
+                zr_sections = []
+                for col in ['ZR Section', 'ZR Sections']:
+                    if col in gp_proj.columns:
+                        for z in gp_proj[col].dropna().unique():
+                            z_clean = str(z).strip()
+                            if z_clean and z_clean.lower() not in ["", "nan", "none", "--"]:
+                                if z_clean not in zr_sections:
+                                    zr_sections.append(z_clean)
+                p_zr = ", ".join(zr_sections) if zr_sections else "N/A"
                 
                 # Render item as a list item
                 with st.container(border=True):
                     item_col1, item_col2 = st.columns([5, 1])
                     with item_col1:
                         st.markdown(f"**Project:** {p_name} | **ID:** `{p_id}`")
-                        st.markdown(f"**ZR Section:** `{p_zr}` | **Sample Category:** `{p_sample}`")
+                        st.markdown(f"**ZR Section:** `{p_zr}` | **Sample Category/Categories:** `{p_sample}`")
                     with item_col2:
                         if p_zap and p_zap.lower() not in ["", "nan", "none"]:
                             st.markdown(f"""
@@ -1083,17 +1111,36 @@ ID: {p_id} &nbsp;|&nbsp; Year: {cert_yr}
                 card_html += f"""
 <p style="font-size: 0.9rem; color: #CBD5E1; line-height: 1.4; margin-top: 8px; margin-bottom: 12px; font-family: 'Inter', sans-serif;">{desc_val}</p>"""
 
-            zr_val = str(r1.get('ZR Section', r1.get('ZR Sections', ''))).strip()
-            sample_val = str(r1.get('Sample Categories', '')).strip()
-            if zr_val and zr_val.lower() not in ["", "nan", "none"]:
+            # Get ALL unique sample categories and ZR sections for this project from the raw database
+            full_gp = df_raw[df_raw['Project ID'] == p_id] if not df_raw.empty else gp
+            
+            samples = []
+            for s in full_gp['Sample Categories'].dropna().unique():
+                s_clean = str(s).strip()
+                if s_clean and s_clean.lower() not in ["", "nan", "none", "--"]:
+                    if s_clean not in samples:
+                        samples.append(s_clean)
+            sample_val = ", ".join(samples)
+            
+            zr_sections = []
+            for col in ['ZR Section', 'ZR Sections']:
+                if col in full_gp.columns:
+                    for z in full_gp[col].dropna().unique():
+                        z_clean = str(z).strip()
+                        if z_clean and z_clean.lower() not in ["", "nan", "none", "--"]:
+                            if z_clean not in zr_sections:
+                                zr_sections.append(z_clean)
+            zr_val = ", ".join(zr_sections)
+
+            if zr_val:
                 card_html += f"""
 <div style="font-family: 'Fira Code', 'Roboto Mono', monospace; font-size: 0.8rem; color: #94A3B8; margin-bottom: 6px;">
 <strong>ZR Section:</strong> {zr_val}
 </div>"""
-            if sample_val and sample_val.lower() not in ["", "nan", "none"]:
+            if sample_val:
                 card_html += f"""
 <div style="font-family: 'Fira Code', 'Roboto Mono', monospace; font-size: 0.8rem; color: #94A3B8; margin-bottom: 12px;">
-<strong>Sample Categories:</strong> {sample_val}
+<strong>Sample Category/Categories:</strong> {sample_val}
 </div>"""
 
             card_html += """
