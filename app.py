@@ -218,7 +218,7 @@ st.markdown(f"""
     }}
 
     /* Clickable Metric Buttons */
-    .metric-btn div[data-testid="stButton"] button {{
+    div:has(div.metric-marker) + div div.stButton button {{
         background: linear-gradient(135deg, rgba(14, 165, 233, 0.25) 0%, rgba(3, 105, 161, 0.35) 100%) !important;
         border: 1px solid rgba(56, 189, 248, 0.35) !important;
         padding: 16px 10px !important;
@@ -238,14 +238,14 @@ st.markdown(f"""
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
     }}
     
-    .metric-btn div[data-testid="stButton"] button:hover {{
+    div:has(div.metric-marker) + div div.stButton button:hover {{
         border-color: rgba(56, 189, 248, 0.7) !important;
         background: linear-gradient(135deg, rgba(14, 165, 233, 0.4) 0%, rgba(3, 105, 161, 0.5) 100%) !important;
         transform: translateY(-3px) !important;
         box-shadow: 0 6px 20px rgba(14, 165, 233, 0.3) !important;
     }}
     
-    .metric-btn div[data-testid="stButton"] button::first-line {{
+    div:has(div.metric-marker) + div div.stButton button::first-line {{
         font-size: 2.1rem !important;
         font-weight: 800 !important;
         text-transform: none !important;
@@ -783,34 +783,29 @@ if os.path.exists('review_queue.csv'):
 col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
 
 with col_m1:
-    st.markdown('<div class="metric-btn metric-total">', unsafe_allow_html=True)
+    st.markdown('<div class="metric-marker"></div>', unsafe_allow_html=True)
     if st.button(f"{total_projects}\nTotal Projects", key="btn_metric_total", use_container_width=True):
         st.session_state.active_metric_view = "Total Projects"
-    st.markdown('</div>', unsafe_allow_html=True)
 
 with col_m2:
-    st.markdown('<div class="metric-btn metric-use">', unsafe_allow_html=True)
+    st.markdown('<div class="metric-marker"></div>', unsafe_allow_html=True)
     if st.button(f"{use_waivers_cnt}\nUse Waivers", key="btn_metric_use", use_container_width=True):
         st.session_state.active_metric_view = "Use Waivers"
-    st.markdown('</div>', unsafe_allow_html=True)
 
 with col_m3:
-    st.markdown('<div class="metric-btn metric-bulk">', unsafe_allow_html=True)
+    st.markdown('<div class="metric-marker"></div>', unsafe_allow_html=True)
     if st.button(f"{bulk_waivers_cnt}\nBulk Waivers", key="btn_metric_bulk", use_container_width=True):
         st.session_state.active_metric_view = "Bulk Waivers"
-    st.markdown('</div>', unsafe_allow_html=True)
 
 with col_m4:
-    st.markdown('<div class="metric-btn metric-space">', unsafe_allow_html=True)
+    st.markdown('<div class="metric-marker"></div>', unsafe_allow_html=True)
     if st.button(f"{open_space_cnt}\nOpen Spaces", key="btn_metric_space", use_container_width=True):
         st.session_state.active_metric_view = "Open Spaces"
-    st.markdown('</div>', unsafe_allow_html=True)
 
 with col_m5:
-    st.markdown('<div class="metric-btn metric-queue">', unsafe_allow_html=True)
+    st.markdown('<div class="metric-marker"></div>', unsafe_allow_html=True)
     if st.button(f"{q_df_cnt}\nPending Queue", key="btn_metric_queue", use_container_width=True):
         st.session_state.active_metric_view = "Pending Queue"
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # Render projects list if a metric is clicked
 if st.session_state.get("active_metric_view"):
