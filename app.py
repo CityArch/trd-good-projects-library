@@ -758,6 +758,7 @@ if "search_reset_key" not in st.session_state: st.session_state.search_reset_key
 if "multi_iterations" not in st.session_state: st.session_state.multi_iterations = [{"l1": "--", "l2": "--", "l3": "--"}]
 if "search_clicked" not in st.session_state: st.session_state.search_clicked = False
 if "edit_reset_key" not in st.session_state: st.session_state.edit_reset_key = 0
+if "nominate_reset_key" not in st.session_state: st.session_state.nominate_reset_key = 0
 
 df_raw = load_csv_safe('projects.csv')
 
@@ -1437,18 +1438,18 @@ with admin_tabs[0]:
 # TAB 2: ADD NEW ENTRY
 with admin_tabs[1]:
     st.markdown("### ➕ Nominate a Good Project")
-    add_name = st.text_input("Project Name *", placeholder="e.g., Queens Plaza Residential", key="add_name")
-    add_id = st.text_input("Project ID / ULURP Number *", placeholder="e.g., N210045ZRK", key="add_id")
-    add_year = st.text_input("Certification Year (Cert Year)", placeholder="e.g., 2024 or 21-Sep", key="add_year")
-    add_desc = st.text_area("Project Description (Project Desc.)", placeholder="Enter brief overview of the project actions and waivers...", key="add_desc")
+    add_name = st.text_input("Project Name *", placeholder="e.g., Queens Plaza Residential", key=f"add_name_{st.session_state.nominate_reset_key}")
+    add_id = st.text_input("Project ID / ULURP Number *", placeholder="e.g., N210045ZRK", key=f"add_id_{st.session_state.nominate_reset_key}")
+    add_year = st.text_input("Certification Year (Cert Year)", placeholder="e.g., 2024 or 21-Sep", key=f"add_year_{st.session_state.nominate_reset_key}")
+    add_desc = st.text_area("Project Description (Project Desc.)", placeholder="Enter brief overview of the project actions and waivers...", key=f"add_desc_{st.session_state.nominate_reset_key}")
     
     col_inputs1, col_inputs2 = st.columns(2)
     with col_inputs1:
-        add_zr = st.text_input("ZR Section", placeholder="e.g., 74-48, 33-432", key="add_zr")
+        add_zr = st.text_input("ZR Section", placeholder="e.g., 74-48, 33-432", key=f"add_zr_{st.session_state.nominate_reset_key}")
     with col_inputs2:
-        add_sample = st.text_input("Sample Categories", placeholder="e.g., Sky Exposure Plane", key="add_sample")
+        add_sample = st.text_input("Sample Categories", placeholder="e.g., Sky Exposure Plane", key=f"add_sample_{st.session_state.nominate_reset_key}")
         
-    add_l1_list = st.multiselect("Level 1 Categories * (Select one or more)", list(TREE_DATA.keys()), key="add_l1_list", format_func=format_l1)
+    add_l1_list = st.multiselect("Level 1 Categories * (Select one or more)", list(TREE_DATA.keys()), key=f"add_l1_list_{st.session_state.nominate_reset_key}", format_func=format_l1)
 
     # Dynamic selection of Level 2 and Level 3 categories for EACH selected Level 1 category
     selected_classifications = {} # keys: (l1, l2), values: list of selected l3 categories
@@ -1480,56 +1481,64 @@ with admin_tabs[1]:
                 return option
                 
             l2_label = f"[{c_emoji}]({c_url}) :{c_color}[Select Level 2 Categories under {c_name} *]"
-            add_l2_list = st.multiselect(l2_label, daddy_list, key=f"add_l2_{l1}", format_func=format_l2_widget)
+            add_l2_list = st.multiselect(l2_label, daddy_list, key=f"add_l2_{l1}_{st.session_state.nominate_reset_key}", format_func=format_l2_widget)
             
             if add_l2_list:
                 for l2 in add_l2_list:
                     son_list = TREE_DATA[l1][l2]
                     if son_list:
                         l3_label = f"[{c_emoji}]({c_url}) :{c_color}[Select Level 3 Subcategories for {l2}]"
-                        l3_selected = st.multiselect(l3_label, son_list, key=f"add_l3_{l1}_{l2}")
+                        l3_selected = st.multiselect(l3_label, son_list, key=f"add_l3_{l1}_{l2}_{st.session_state.nominate_reset_key}")
                         selected_classifications[(l1, l2)] = l3_selected
                     else:
                         selected_classifications[(l1, l2)] = []
 
     st.markdown("<br>", unsafe_allow_html=True)
-    add_link = st.text_input("Approval Pack / NOC URL", placeholder="e.g., https://zap.planning.nyc.gov/...", key="add_link")
-    add_remarks = st.text_area("Remarks", placeholder="Add context, waivers granted, or other notes...", key="add_remarks")
+    add_link = st.text_input("Approval Pack / NOC URL", placeholder="e.g., https://zap.planning.nyc.gov/...", key=f"add_link_{st.session_state.nominate_reset_key}")
+    add_remarks = st.text_area("Remarks", placeholder="Add context, waivers granted, or other notes...", key=f"add_remarks_{st.session_state.nominate_reset_key}")
     
-    if st.button("Submit For Admin Review & Approval", type="primary", use_container_width=True):
-        if not add_name or not add_id or not add_l1_list or not selected_classifications:
-            st.error("Please fill in all required fields (Name, ID, and at least one Category path).")
-        else:
-            # We split the multiple L1 and L2 selections into separate review queue entries!
-            count_subm = 0
-            for (l1, l2), l3s in selected_classifications.items():
-                l3_vals = ["", "", "", ""]
-                for idx, val in enumerate(l3s[:4]):
-                    l3_vals[idx] = val
+    st.markdown("<br>", unsafe_allow_html=True)
+    nom_col1, nom_col2 = st.columns([8, 2])
+    with nom_col1:
+        if st.button("Submit For Admin Review & Approval", type="primary", use_container_width=True):
+            if not add_name or not add_id or not add_l1_list or not selected_classifications:
+                st.error("Please fill in all required fields (Name, ID, and at least one Category path).")
+            else:
+                # We split the multiple L1 and L2 selections into separate review queue entries!
+                count_subm = 0
+                for (l1, l2), l3s in selected_classifications.items():
+                    l3_vals = ["", "", "", ""]
+                    for idx, val in enumerate(l3s[:4]):
+                        l3_vals[idx] = val
+                        
+                    new_row = {
+                        'Level1': l1,
+                        'Level2': l2,
+                        'Level3-1': l3_vals[0],
+                        'Level3-2': l3_vals[1],
+                        'Level3-3': l3_vals[2],
+                        'Level3-4': l3_vals[3],
+                        'Project': add_name,
+                        'Project ID': add_id,
+                        'Cert Year': add_year if add_year else str(date.today().year),
+                        'Approval Pack/NOC': add_link,
+                        'Project Desc.': add_desc,
+                        'ZR Section': add_zr,
+                        'Sample Categories': add_sample,
+                        'Remarks': add_remarks,
+                        'Status': 'Pending',
+                        'Nominator': st.session_state.logged_in_user
+                    }
+                    save_row('review_queue.csv', new_row)
+                    count_subm += 1
                     
-                new_row = {
-                    'Level1': l1,
-                    'Level2': l2,
-                    'Level3-1': l3_vals[0],
-                    'Level3-2': l3_vals[1],
-                    'Level3-3': l3_vals[2],
-                    'Level3-4': l3_vals[3],
-                    'Project': add_name,
-                    'Project ID': add_id,
-                    'Cert Year': add_year if add_year else str(date.today().year),
-                    'Approval Pack/NOC': add_link,
-                    'Project Desc.': add_desc,
-                    'ZR Section': add_zr,
-                    'Sample Categories': add_sample,
-                    'Remarks': add_remarks,
-                    'Status': 'Pending',
-                    'Nominator': st.session_state.logged_in_user
-                }
-                save_row('review_queue.csv', new_row)
-                count_subm += 1
-                
-            log_event(st.session_state.logged_in_user, "Nominate Project", f"Nominated project '{add_name}' (ID: {add_id}) with {count_subm} category paths")
-            st.success(f"Successfully submitted '{add_name}' with {count_subm} category paths for Admin Review & Approval!")
+                log_event(st.session_state.logged_in_user, "Nominate Project", f"Nominated project '{add_name}' (ID: {add_id}) with {count_subm} category paths")
+                st.success(f"Successfully submitted '{add_name}' with {count_subm} category paths for Admin Review & Approval!")
+                st.session_state.nominate_reset_key += 1
+                st.rerun()
+    with nom_col2:
+        if st.button("🧹 Clear Form", use_container_width=True, help="Clear all fields and start over"):
+            st.session_state.nominate_reset_key += 1
             st.rerun()
 
 
