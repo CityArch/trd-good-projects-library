@@ -944,6 +944,8 @@ with side_col2:
     if st.button("🧹 CLEAR", use_container_width=True):
         st.session_state.search_reset_key += 1
         st.session_state.multi_iterations = [{"l1": "--", "l2": "--", "l3": "--"}]
+        st.session_state.search_l1_list = []
+        st.session_state.search_filter_locked = False
         st.session_state.search_clicked = False
         st.rerun()
 
@@ -956,14 +958,18 @@ with col_reset:
     if st.button("🔄 Reset Filtering", key="workspace_reset_btn", use_container_width=True):
         st.session_state.search_reset_key += 1
         st.session_state.multi_iterations = [{"l1": "--", "l2": "--", "l3": "--"}]
+        st.session_state.search_l1_list = []
+        st.session_state.search_filter_locked = False
         st.session_state.search_clicked = False
         st.rerun()
 
-workspace_cols = st.columns(len(st.session_state.multi_iterations))
-
-for i, iteration in enumerate(st.session_state.multi_iterations):
-    with workspace_cols[i]:
-        sel_l1 = st.session_state.multi_iterations[i]["l1"]
+if search_mode == "Single-Action Search":
+    if len(st.session_state.multi_iterations) != 1:
+        st.session_state.multi_iterations = [{"l1": "--", "l2": "--", "l3": "--"}]
+        
+    workspace_cols = st.columns(1)
+    with workspace_cols[0]:
+        sel_l1 = st.session_state.multi_iterations[0]["l1"]
         if sel_l1 != "--":
             img_b64 = get_base64_image(TREE_DATA[sel_l1]["image_file"])
             if img_b64: 
@@ -979,8 +985,7 @@ for i, iteration in enumerate(st.session_state.multi_iterations):
 <span style='font-size: 0.8rem; font-weight: 500;'>No L1 Category Selected</span>
 </div>
 </div>""", unsafe_allow_html=True)
-        
-        # Define style values if L1 is selected
+            
         style = L1_STYLE.get(sel_l1, {"color": "green", "hex": "#34D399", "emoji": "🟢", "name": sel_l1, "url": "https://use-waivers"})
         c_color = style["color"]
         c_hex = style["hex"]
@@ -989,7 +994,6 @@ for i, iteration in enumerate(st.session_state.multi_iterations):
         c_url = style["url"]
         
         if sel_l1 != "--":
-            # Add a colored left border header above the L1 select box
             st.markdown(f"""
             <div style="border-left: 4px solid {c_hex}; padding-left: 10px; margin-bottom: 8px;">
                 <span style="color: {c_hex}; font-weight: 600; font-size: 0.95rem; font-family: 'Outfit';">
@@ -997,18 +1001,16 @@ for i, iteration in enumerate(st.session_state.multi_iterations):
                 </span>
             </div>
             """, unsafe_allow_html=True)
-            
-            l1_label = f"[{c_emoji}]({c_url}) :{c_color}[L1 Selection (Col {i+1})]"
+            l1_label = f"[{c_emoji}]({c_url}) :{c_color}[L1 Selection]"
         else:
-            l1_label = f"L1 Selection (Col {i+1})"
+            l1_label = "L1 Selection"
             
-        st.session_state.multi_iterations[i]["l1"] = st.selectbox(l1_label, ["--"] + list(TREE_DATA.keys()), key=f"l1_{i}_{st.session_state.search_reset_key}", format_func=format_l1)
+        st.session_state.multi_iterations[0]["l1"] = st.selectbox(l1_label, ["--"] + list(TREE_DATA.keys()), key=f"l1_single_{st.session_state.search_reset_key}", format_func=format_l1)
         
-        cur_l1 = st.session_state.multi_iterations[i]["l1"]
+        cur_l1 = st.session_state.multi_iterations[0]["l1"]
         if cur_l1 != "--":
             daddy_list = [k for k in TREE_DATA[cur_l1].keys() if k != "image_file"]
             
-            # Formatter for Level 2 options (bold if they have subcategories)
             def format_l2_search(option):
                 if option == "--":
                     return option
@@ -1018,32 +1020,146 @@ for i, iteration in enumerate(st.session_state.multi_iterations):
                 return option
                 
             l2_label = f":{c_color}[{c_emoji} L2 - {c_name}]"
-            st.session_state.multi_iterations[i]["l2"] = st.radio(l2_label, ["--"] + daddy_list, key=f"l2_{i}_{st.session_state.search_reset_key}", format_func=format_l2_search)
+            st.session_state.multi_iterations[0]["l2"] = st.radio(l2_label, ["--"] + daddy_list, key=f"l2_single_{st.session_state.search_reset_key}", format_func=format_l2_search)
             
-            cur_l2 = st.session_state.multi_iterations[i]["l2"]
+            cur_l2 = st.session_state.multi_iterations[0]["l2"]
             if cur_l2 != "--":
                 son_list = TREE_DATA[cur_l1][cur_l2]
                 if son_list:
                     l3_label = f":{c_color}[{c_emoji} L3 - {cur_l2}]"
-                    st.session_state.multi_iterations[i]["l3"] = st.radio(l3_label, ["--"] + son_list, key=f"l3_{i}_{st.session_state.search_reset_key}")
-                else: st.session_state.multi_iterations[i]["l3"] = "--"
+                    st.session_state.multi_iterations[0]["l3"] = st.radio(l3_label, ["--"] + son_list, key=f"l3_single_{st.session_state.search_reset_key}")
+                else: st.session_state.multi_iterations[0]["l3"] = "--"
             else:
-                st.session_state.multi_iterations[i]["l3"] = "--"
+                st.session_state.multi_iterations[0]["l3"] = "--"
         else:
-            st.session_state.multi_iterations[i]["l2"] = "--"
-            st.session_state.multi_iterations[i]["l3"] = "--"
+            st.session_state.multi_iterations[0]["l2"] = "--"
+            st.session_state.multi_iterations[0]["l3"] = "--"
 
-# Navigation
-st.markdown("<br>", unsafe_allow_html=True)
-nav1, nav2, _ = st.columns([0.15, 0.15, 0.7])
-if search_mode == "Multi-Action Search" and len(st.session_state.multi_iterations) < 5:
-    if nav1.button("➕ CONTINUE FILTER", use_container_width=True):
-        st.session_state.multi_iterations.append({"l1": "--", "l2": "--", "l3": "--"})
-        st.rerun()
+else:
+    # Multi-Action Search mode using Nominate-style selection logic
+    is_locked = st.session_state.get("search_filter_locked", False)
+    
+    # Image Display Space under "Project Search Filter" (when locked)
+    if is_locked:
+        search_l1_list = st.session_state.get("search_l1_list", [])
+        if search_l1_list:
+            st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+            img_cols = st.columns(len(search_l1_list))
+            for col_idx, l1 in enumerate(search_l1_list):
+                with img_cols[col_idx]:
+                    img_file = TREE_DATA.get(l1, {}).get("image_file")
+                    if img_file:
+                        img_b64 = get_base64_image(img_file)
+                        if img_b64:
+                            st.markdown(f"""
+                            <div style="text-align: center; margin-bottom: 15px;">
+                                <img src="data:image/jpeg;base64,{img_b64}" class="standardized-l1-image" style="width: 100%; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                                <div style="margin-top: 8px; font-weight: 600; color: #FFFFFF; font-size: 0.9rem; font-family: 'Outfit';">
+                                    {format_l1(l1)}
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+    if "search_l1_list" not in st.session_state:
+        st.session_state.search_l1_list = []
+        
+    st.session_state.search_l1_list = st.multiselect(
+        "Level 1 Categories * (Select one or more)",
+        list(TREE_DATA.keys()),
+        default=st.session_state.search_l1_list,
+        key=f"search_l1_multiselect_{st.session_state.search_reset_key}",
+        format_func=format_l1,
+        disabled=is_locked
+    )
+    
+    search_l1_list = st.session_state.search_l1_list
+    search_paths = []
+    
+    if search_l1_list:
+        for l1 in search_l1_list:
+            style = L1_STYLE.get(l1, {"color": "green", "hex": "#34D399", "emoji": "🟢", "name": l1, "url": "https://use-waivers"})
+            c_color = style["color"]
+            c_hex = style["hex"]
+            c_emoji = style["emoji"]
+            c_name = style["name"]
+            c_url = style["url"]
+            
+            st.markdown(f"""
+            <div style="border-left: 4px solid {c_hex}; padding-left: 12px; margin-top: 22px; margin-bottom: 12px;">
+                <h4 style="color: {c_hex}; margin: 0; font-family: 'Outfit', sans-serif; font-size: 1.1rem; letter-spacing: 0.02em;">
+                    {c_emoji} {c_name.upper()} CATEGORY FAMILY
+                </h4>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            daddy_list = [k for k in TREE_DATA[l1].keys() if k != "image_file"]
+            
+            def format_l2_search_widget(option):
+                has_l3 = bool(TREE_DATA.get(l1, {}).get(option))
+                if has_l3:
+                    return make_unicode_bold(option) + "*"
+                return option
+                
+            l2_label = f"[{c_emoji}]({c_url}) :{c_color}[Select Level 2 Categories under {c_name} *]"
+            
+            l2_state_key = f"search_l2_{l1}_{st.session_state.search_reset_key}"
+            if l2_state_key not in st.session_state:
+                st.session_state[l2_state_key] = []
+                
+            selected_l2_list = st.multiselect(
+                l2_label,
+                daddy_list,
+                default=st.session_state[l2_state_key],
+                key=l2_state_key,
+                format_func=format_l2_search_widget,
+                disabled=is_locked
+            )
+            
+            if selected_l2_list:
+                for l2 in selected_l2_list:
+                    son_list = TREE_DATA[l1][l2]
+                    if son_list:
+                        l3_state_key = f"search_l3_{l1}_{l2}_{st.session_state.search_reset_key}"
+                        if l3_state_key not in st.session_state:
+                            st.session_state[l3_state_key] = []
+                            
+                        l3_label = f"[{c_emoji}]({c_url}) :{c_color}[Select Level 3 Subcategories for {l2}]"
+                        selected_l3_list = st.multiselect(
+                            l3_label,
+                            son_list,
+                            default=st.session_state[l3_state_key],
+                            key=l3_state_key,
+                            disabled=is_locked
+                        )
+                        
+                        if selected_l3_list:
+                            for l3 in selected_l3_list:
+                                search_paths.append({"l1": l1, "l2": l2, "l3": l3})
+                        else:
+                            search_paths.append({"l1": l1, "l2": l2, "l3": "--"})
+                    else:
+                        search_paths.append({"l1": l1, "l2": l2, "l3": "--"})
+            else:
+                search_paths.append({"l1": l1, "l2": "--", "l3": "--"})
+                
+    # Update search filters state
+    if not is_locked:
+        st.session_state.multi_iterations = search_paths if search_paths else [{"l1": "--", "l2": "--", "l3": "--"}]
 
-if search_mode == "Multi-Action Search" and len(st.session_state.multi_iterations) > 1:
-    if nav2.button("🏁 FINISH", use_container_width=True):
-        st.success("Search Filter locked.")
+    # Render Lock/Unlock Controls
+    st.markdown("<br>", unsafe_allow_html=True)
+    ctrl_col, _ = st.columns([0.25, 0.75])
+    with ctrl_col:
+        if is_locked:
+            if st.button("🔓 UNLOCK FILTER", key="search_unlock_btn", use_container_width=True):
+                st.session_state.search_filter_locked = False
+                st.rerun()
+        else:
+            if st.button("🏁 FINISH", key="search_finish_btn", use_container_width=True):
+                st.session_state.search_filter_locked = True
+                st.session_state.multi_iterations = search_paths if search_paths else [{"l1": "--", "l2": "--", "l3": "--"}]
+                st.success("Search Filter locked.")
+                st.rerun()
 
 # --- 3. RESULTS ENGINE ---
 st.divider()
