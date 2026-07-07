@@ -253,6 +253,20 @@ st.markdown(f"""
         color: #FFFFFF !important;
     }}
     
+    /* Force columns container to remain inline and never wrap */
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] {{
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        width: 100% !important;
+        gap: 12px !important;
+    }}
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {{
+        flex: 1 1 0% !important;
+        min-width: 0 !important;
+        width: auto !important;
+    }}
+    
     /* Close Button Style */
     div.close-btn div[data-testid="stButton"] button {{
         background: transparent !important;
@@ -780,6 +794,7 @@ if os.path.exists('review_queue.csv'):
         pass
 
 # Render stats boxes as clickable buttons
+st.markdown('<div class="metrics-row-marker"></div>', unsafe_allow_html=True)
 col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
 
 with col_m1:
