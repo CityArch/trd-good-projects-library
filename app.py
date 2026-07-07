@@ -741,12 +741,13 @@ st.markdown(f"""
 if not df_raw.empty:
     total_projects = len(df_raw['Project ID'].unique())
     total_records = len(df_raw)
-    l1_counts = df_raw['Level1'].value_counts()
-    use_waivers_cnt = l1_counts.get('Use_Waivers', 0)
-    bulk_waivers_cnt = l1_counts.get('Bulk_Waivers', 0)
-    parking_cnt = l1_counts.get('Parking_Curbcuts', 0)
-    open_space_cnt = l1_counts.get('Open_Space', 0)
-    misc_cnt = l1_counts.get('Miscellaneous', 0)
+    
+    # Compute counts based on unique Project IDs under each category to match list overlay counts
+    use_waivers_cnt = len(df_raw[df_raw['Level1'] == 'Use_Waivers']['Project ID'].unique())
+    bulk_waivers_cnt = len(df_raw[df_raw['Level1'] == 'Bulk_Waivers']['Project ID'].unique())
+    parking_cnt = len(df_raw[df_raw['Level1'] == 'Parking_Curbcuts']['Project ID'].unique())
+    open_space_cnt = len(df_raw[df_raw['Level1'] == 'Open_Space']['Project ID'].unique())
+    misc_cnt = len(df_raw[df_raw['Level1'] == 'Miscellaneous']['Project ID'].unique())
 else:
     total_projects = 0
     total_records = 0
