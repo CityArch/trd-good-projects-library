@@ -219,52 +219,38 @@ st.markdown(f"""
 
     /* Clickable Metric Buttons */
     .metric-btn div[data-testid="stButton"] button {{
-        background: rgba(30, 41, 59, 0.35) !important;
-        border: 1px solid rgba(255, 255, 255, 0.05) !important;
-        padding: 14px 10px !important;
+        background: linear-gradient(135deg, rgba(14, 165, 233, 0.25) 0%, rgba(3, 105, 161, 0.35) 100%) !important;
+        border: 1px solid rgba(56, 189, 248, 0.35) !important;
+        padding: 16px 10px !important;
         border-radius: 12px !important;
         text-align: center !important;
-        color: #94A3B8 !important;
-        font-size: 0.72rem !important;
+        color: #FFFFFF !important;
+        font-size: 0.75rem !important;
         font-weight: 600 !important;
         text-transform: uppercase !important;
         letter-spacing: 0.08em !important;
         font-family: "Outfit", sans-serif !important;
         white-space: pre-wrap !important;
-        line-height: 1.25 !important;
-        height: 95px !important;
+        line-height: 1.35 !important;
+        height: 110px !important;
         width: 100% !important;
         transition: all 0.3s ease !important;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15) !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
     }}
     
     .metric-btn div[data-testid="stButton"] button:hover {{
-        border-color: rgba(99, 102, 241, 0.35) !important;
-        background: rgba(30, 41, 59, 0.55) !important;
-        transform: translateY(-2px) !important;
+        border-color: rgba(56, 189, 248, 0.7) !important;
+        background: linear-gradient(135deg, rgba(14, 165, 233, 0.4) 0%, rgba(3, 105, 161, 0.5) 100%) !important;
+        transform: translateY(-3px) !important;
+        box-shadow: 0 6px 20px rgba(14, 165, 233, 0.3) !important;
     }}
     
     .metric-btn div[data-testid="stButton"] button::first-line {{
-        font-size: 1.8rem !important;
+        font-size: 2.1rem !important;
         font-weight: 800 !important;
         text-transform: none !important;
         letter-spacing: normal !important;
-    }}
-    
-    .metric-total div[data-testid="stButton"] button::first-line {{
         color: #FFFFFF !important;
-    }}
-    .metric-use div[data-testid="stButton"] button::first-line {{
-        color: #34D399 !important;
-    }}
-    .metric-bulk div[data-testid="stButton"] button::first-line {{
-        color: #818CF8 !important;
-    }}
-    .metric-space div[data-testid="stButton"] button::first-line {{
-        color: #38BDF8 !important;
-    }}
-    .metric-queue div[data-testid="stButton"] button::first-line {{
-        color: #FBBF24 !important;
     }}
     
     /* Close Button Style */
