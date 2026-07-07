@@ -221,50 +221,16 @@ st.markdown(f"""
     div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] div.stButton button {{
         background: linear-gradient(135deg, rgba(14, 165, 233, 0.25) 0%, rgba(3, 105, 161, 0.35) 100%) !important;
         border: 1px solid rgba(56, 189, 248, 0.35) !important;
-        padding: 8px 6px !important;
-        border-radius: 10px !important;
-        text-align: center !important;
         color: #FFFFFF !important;
-        font-size: 0.65rem !important;
-        font-weight: 600 !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.08em !important;
-        font-family: "Outfit", sans-serif !important;
-        white-space: pre-wrap !important;
-        line-height: 1.3 !important;
-        height: 78px !important;
-        width: 100% !important;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
     }}
     
     div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] div.stButton button:hover {{
         border-color: rgba(56, 189, 248, 0.7) !important;
         background: linear-gradient(135deg, rgba(14, 165, 233, 0.4) 0%, rgba(3, 105, 161, 0.5) 100%) !important;
-        transform: translateY(-2px) !important;
-        box-shadow: 0 6px 20px rgba(14, 165, 233, 0.3) !important;
     }}
     
     div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] div.stButton button::first-line {{
-        font-size: 1.5rem !important;
-        font-weight: 800 !important;
-        text-transform: none !important;
-        letter-spacing: normal !important;
         color: #FFFFFF !important;
-    }}
-    
-    /* Force columns container to remain inline and never wrap */
-    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] {{
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        width: 100% !important;
-        gap: 12px !important;
-    }}
-    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {{
-        flex: 1 1 0% !important;
-        min-width: 0 !important;
-        width: auto !important;
     }}
     
     /* Close Button Style */
