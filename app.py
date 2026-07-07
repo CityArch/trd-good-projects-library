@@ -744,13 +744,17 @@ if not df_raw.empty:
     l1_counts = df_raw['Level1'].value_counts()
     use_waivers_cnt = l1_counts.get('Use_Waivers', 0)
     bulk_waivers_cnt = l1_counts.get('Bulk_Waivers', 0)
+    parking_cnt = l1_counts.get('Parking_Curbcuts', 0)
     open_space_cnt = l1_counts.get('Open_Space', 0)
+    misc_cnt = l1_counts.get('Miscellaneous', 0)
 else:
     total_projects = 0
     total_records = 0
     use_waivers_cnt = 0
     bulk_waivers_cnt = 0
+    parking_cnt = 0
     open_space_cnt = 0
+    misc_cnt = 0
 
 q_df_cnt = 0
 if os.path.exists('review_queue.csv'):
@@ -761,7 +765,7 @@ if os.path.exists('review_queue.csv'):
 
 # Render stats boxes as clickable buttons
 st.markdown('<div class="metrics-row-marker"></div>', unsafe_allow_html=True)
-col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
+col_m1, col_m2, col_m3, col_m4, col_m5, col_m6, col_m7 = st.columns(7)
 
 with col_m1:
     st.markdown('<div class="metric-marker"></div>', unsafe_allow_html=True)
@@ -780,10 +784,20 @@ with col_m3:
 
 with col_m4:
     st.markdown('<div class="metric-marker"></div>', unsafe_allow_html=True)
+    if st.button(f"{parking_cnt}\nParking & Curbcuts", key="btn_metric_parking", use_container_width=True):
+        st.session_state.active_metric_view = "Parking & Curbcuts"
+
+with col_m5:
+    st.markdown('<div class="metric-marker"></div>', unsafe_allow_html=True)
     if st.button(f"{open_space_cnt}\nOpen Spaces", key="btn_metric_space", use_container_width=True):
         st.session_state.active_metric_view = "Open Spaces"
 
-with col_m5:
+with col_m6:
+    st.markdown('<div class="metric-marker"></div>', unsafe_allow_html=True)
+    if st.button(f"{misc_cnt}\nMiscellaneous", key="btn_metric_misc", use_container_width=True):
+        st.session_state.active_metric_view = "Miscellaneous"
+
+with col_m7:
     st.markdown('<div class="metric-marker"></div>', unsafe_allow_html=True)
     if st.button(f"{q_df_cnt}\nPending Queue", key="btn_metric_queue", use_container_width=True):
         st.session_state.active_metric_view = "Pending Queue"
@@ -809,8 +823,12 @@ if st.session_state.get("active_metric_view"):
                 df_view = df_raw[df_raw['Level1'] == 'Use_Waivers']
             elif view_name == "Bulk Waivers":
                 df_view = df_raw[df_raw['Level1'] == 'Bulk_Waivers']
+            elif view_name == "Parking & Curbcuts":
+                df_view = df_raw[df_raw['Level1'] == 'Parking_Curbcuts']
             elif view_name == "Open Spaces":
                 df_view = df_raw[df_raw['Level1'] == 'Open_Space']
+            elif view_name == "Miscellaneous":
+                df_view = df_raw[df_raw['Level1'] == 'Miscellaneous']
 
     if not df_view.empty:
         # Deduplicate the IDs to get the counts and iterate
