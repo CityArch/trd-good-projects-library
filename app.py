@@ -1025,7 +1025,7 @@ with side_col2:
 # --- 2. WORKSPACE / SEARCH FILTERS ---
 col_hdr, col_reset = st.columns([0.75, 0.25])
 with col_hdr:
-    st.subheader("🌳 Project Search Filter")
+    st.markdown("### 🌳 Project Search Filter <span style='font-size: 0.8rem; font-weight: normal; color: #94A3B8; margin-left: 10px; font-family: \"Inter\";'>(Click Each Main Category Buttons Below to See the Structure of Hierarchies For Each Action)</span>", unsafe_allow_html=True)
 with col_reset:
     st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
     if st.button("🔄 Reset Filtering", key="workspace_reset_btn", use_container_width=True):
