@@ -986,12 +986,6 @@ if st.session_state.get("active_metric_view"):
                     style = L1_STYLE.get(cat, {"color": "green", "hex": "#34D399", "emoji": "🟢", "name": cat})
                     badge_html += f'<span style="display: inline-block; background-color: {style["hex"]}; color: #0F172A; padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; margin-left: 6px; font-family: \'Outfit\';">{style["emoji"]} {style["name"].upper()}</span>'
                 
-                # Handle ZAP link display textually
-                if p_zap and p_zap.lower() not in ["", "nan", "none"]:
-                    zap_text = f'<a href="{p_zap}" target="_blank" style="color: #38BDF8; font-weight: 500; text-decoration: underline;">View ZAP Link</a>'
-                else:
-                    zap_text = '<span style="color: #64748B;">No ZAP Link</span>'
-                
                 # Render item as a list item without the button column
                 with st.container(border=True):
                     st.markdown(f"""
@@ -1001,8 +995,7 @@ if st.session_state.get("active_metric_view"):
                         </div>
                         <div style="font-size: 0.9rem; color: #E2E8F0;">
                             <strong>ZR Section:</strong> <code>{p_zr}</code> | 
-                            <strong>Sample Category/Categories:</strong> <code>{p_sample}</code> | 
-                            <strong>ZAP Link:</strong> {zap_text}
+                            <strong>Sample Category/Categories:</strong> <code>{p_sample}</code>
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
