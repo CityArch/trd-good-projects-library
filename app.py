@@ -1034,18 +1034,7 @@ st.sidebar.markdown("---")
 q_search = st.sidebar.text_input("📝 KEYWORD SEARCH", placeholder="Search project name, ID, or description...", key=f"q_{st.session_state.search_reset_key}")
 
 # --- 2. WORKSPACE / SEARCH FILTERS ---
-col_hdr, col_reset = st.columns([0.75, 0.25])
-with col_hdr:
-    st.markdown("### 🌳 Project Search Filter <span style='font-size: 0.8rem; font-weight: normal; color: #94A3B8; margin-left: 10px; font-family: \"Inter\";'>(Click Each Main Category Buttons Below to See the Structure of Hierarchies For Each Action)</span>", unsafe_allow_html=True)
-with col_reset:
-    st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
-    if st.button("🔄 Reset Filtering", key="workspace_reset_btn", use_container_width=True):
-        st.session_state.search_reset_key += 1
-        st.session_state.multi_iterations = [{"l1": "--", "l2": "--", "l3": "--"}]
-        st.session_state.search_l1_list = []
-        st.session_state.search_filter_locked = False
-        st.session_state.search_clicked = False
-        st.rerun()
+st.markdown("### 🌳 Project Search Filter <span style='font-size: 0.8rem; font-weight: normal; color: #94A3B8; margin-left: 10px; font-family: \"Inter\";'>(Click Each Main Category Buttons Below to See the Structure of Hierarchies For Each Action)</span>", unsafe_allow_html=True)
 
 if search_mode == "Single-Action Search":
     if len(st.session_state.multi_iterations) != 1:
@@ -1304,8 +1293,8 @@ else:
 
     # Render Lock/Unlock Controls
     st.markdown("<br>", unsafe_allow_html=True)
-    ctrl_col, _ = st.columns([0.25, 0.75])
-    with ctrl_col:
+    ctrl_col1, ctrl_col2, _ = st.columns([0.25, 0.25, 0.5])
+    with ctrl_col1:
         if is_locked:
             if st.button("🔓 UNLOCK FILTER", key="search_unlock_btn", use_container_width=True):
                 st.session_state.search_filter_locked = False
@@ -1316,6 +1305,14 @@ else:
                 st.session_state.multi_iterations = search_paths if search_paths else [{"l1": "--", "l2": "--", "l3": "--"}]
                 st.success("Search Filter locked.")
                 st.rerun()
+    with ctrl_col2:
+        if st.button("🔄 Reset Filtering", key="workspace_reset_btn", use_container_width=True):
+            st.session_state.search_reset_key += 1
+            st.session_state.multi_iterations = [{"l1": "--", "l2": "--", "l3": "--"}]
+            st.session_state.search_l1_list = []
+            st.session_state.search_filter_locked = False
+            st.session_state.search_clicked = False
+            st.rerun()
 
 # --- 3. RESULTS ENGINE ---
 st.divider()
