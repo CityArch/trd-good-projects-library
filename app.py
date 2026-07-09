@@ -2080,73 +2080,80 @@ with admin_tabs[3]:
 # TAB 5: BACKUPS & CSV OPERATIONS
 with admin_tabs[4]:
     st.markdown("### 💾 Database Backup & Import Tools")
+    st.write("Access is restricted to authorized administrative personnel.")
     
-    st.markdown("#### 📤 Export Database")
-    st.write("Download the current database tables as CSV files for local backup or editing.")
-    
-    df_dl_projects = load_csv_safe('projects.csv')
-    df_dl_queue = load_csv_safe('review_queue.csv')
-    
-    dl_col1, dl_col2 = st.columns(2)
-    with dl_col1:
-        if not df_dl_projects.empty:
-            csv_proj = df_dl_projects.to_csv(index=False, encoding='utf-8-sig')
-            st.download_button(
-                label="📥 Download projects.csv",
-                data=csv_proj,
-                file_name="projects.csv",
-                mime="text/csv",
-                use_container_width=True,
-                on_click=log_event,
-                args=(st.session_state.logged_in_user, "Backup Export", "Downloaded projects.csv")
-            )
-    with dl_col2:
-        if not df_dl_queue.empty:
-            csv_q = df_dl_queue.to_csv(index=False, encoding='utf-8-sig')
-            st.download_button(
-                label="📥 Download review_queue.csv",
-                data=csv_q,
-                file_name="review_queue.csv",
-                mime="text/csv",
-                use_container_width=True,
-                on_click=log_event,
-                args=(st.session_state.logged_in_user, "Backup Export", "Downloaded review_queue.csv")
-            )
-            
-    st.divider()
-    st.markdown("#### 📥 Import Database")
-    st.write("Overwrite the current database by uploading a CSV file. WARNING: This will replace your active database!")
-    
-    upload_file = st.file_uploader("Upload projects.csv replacement", type=["csv"])
-    if upload_file is not None:
-        try:
+    passcode_backup = st.text_input("Enter Passcode to Access Backup & Import Tools", type="password", key="backup_view_passcode")
+    if passcode_backup == "1111":
+        st.success("Access Granted.")
+        
+        st.markdown("#### 📤 Export Database")
+        st.write("Download the current database tables as CSV files for local backup or editing.")
+        
+        df_dl_projects = load_csv_safe('projects.csv')
+        df_dl_queue = load_csv_safe('review_queue.csv')
+        
+        dl_col1, dl_col2 = st.columns(2)
+        with dl_col1:
+            if not df_dl_projects.empty:
+                csv_proj = df_dl_projects.to_csv(index=False, encoding='utf-8-sig')
+                st.download_button(
+                    label="📥 Download projects.csv",
+                    data=csv_proj,
+                    file_name="projects.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                    on_click=log_event,
+                    args=(st.session_state.logged_in_user, "Backup Export", "Downloaded projects.csv")
+                )
+        with dl_col2:
+            if not df_dl_queue.empty:
+                csv_q = df_dl_queue.to_csv(index=False, encoding='utf-8-sig')
+                st.download_button(
+                    label="📥 Download review_queue.csv",
+                    data=csv_q,
+                    file_name="review_queue.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                    on_click=log_event,
+                    args=(st.session_state.logged_in_user, "Backup Export", "Downloaded review_queue.csv")
+                )
+                
+        st.divider()
+        st.markdown("#### 📥 Import Database")
+        st.write("Overwrite the current database by uploading a CSV file. WARNING: This will replace your active database!")
+        
+        upload_file = st.file_uploader("Upload projects.csv replacement", type=["csv"])
+        if upload_file is not None:
             try:
-                uploaded_df = pd.read_csv(upload_file, encoding='utf-8-sig', encoding_errors='replace', dtype=str)
-            except Exception:
                 try:
-                    uploaded_df = pd.read_csv(upload_file, encoding='cp1252', encoding_errors='replace', dtype=str)
+                    uploaded_df = pd.read_csv(upload_file, encoding='utf-8-sig', encoding_errors='replace', dtype=str)
                 except Exception:
                     try:
-                        uploaded_df = pd.read_csv(upload_file, encoding='latin1', dtype=str)
+                        uploaded_df = pd.read_csv(upload_file, encoding='cp1252', encoding_errors='replace', dtype=str)
                     except Exception:
-                        uploaded_df = pd.DataFrame()
-            
-            uploaded_df.columns = [str(c).strip() for c in uploaded_df.columns]
-            if not uploaded_df.empty and 'Project ID' not in uploaded_df.columns:
-                if 'Project' in uploaded_df.iloc[0].values and 'Project ID' in uploaded_df.iloc[0].values:
-                    uploaded_df.columns = [str(c).strip() for c in uploaded_df.iloc[0]]
-                    uploaded_df = uploaded_df[1:].reset_index(drop=True)
-            
-            st.write("Preview of uploaded database:")
-            st.dataframe(uploaded_df.head(5), use_container_width=True)
-            
-            if st.button("⚠️ CONFIRM & OVERWRITE LIVE DATABASE", type="primary", use_container_width=True):
-                uploaded_df.to_csv('projects.csv', index=False, encoding='utf-8-sig')
-                log_event(st.session_state.logged_in_user, "Database Import", f"Imported/Overwrote database with {len(uploaded_df)} records")
-                st.success("Live database successfully updated!")
-                st.rerun()
-        except Exception as e:
-            st.error(f"Error reading uploaded file: {e}")
+                        try:
+                            uploaded_df = pd.read_csv(upload_file, encoding='latin1', dtype=str)
+                        except Exception:
+                            uploaded_df = pd.DataFrame()
+                
+                uploaded_df.columns = [str(c).strip() for c in uploaded_df.columns]
+                if not uploaded_df.empty and 'Project ID' not in uploaded_df.columns:
+                    if 'Project' in uploaded_df.iloc[0].values and 'Project ID' in uploaded_df.iloc[0].values:
+                        uploaded_df.columns = [str(c).strip() for c in uploaded_df.iloc[0]]
+                        uploaded_df = uploaded_df[1:].reset_index(drop=True)
+                
+                st.write("Preview of uploaded database:")
+                st.dataframe(uploaded_df.head(5), use_container_width=True)
+                
+                if st.button("⚠️ CONFIRM & OVERWRITE LIVE DATABASE", type="primary", use_container_width=True):
+                    uploaded_df.to_csv('projects.csv', index=False, encoding='utf-8-sig')
+                    log_event(st.session_state.logged_in_user, "Database Import", f"Imported/Overwrote database with {len(uploaded_df)} records")
+                    st.success("Live database successfully updated!")
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Error reading uploaded file: {e}")
+    elif passcode_backup:
+        st.error("Incorrect Passcode.")
 
 # TAB 6: USER FEEDBACK
 with admin_tabs[5]:
