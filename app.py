@@ -1033,6 +1033,35 @@ with side_col2:
 st.sidebar.markdown("---")
 q_search = st.sidebar.text_input("📝 KEYWORD SEARCH", placeholder="Search project name, ID, or description...", key=f"q_{st.session_state.search_reset_key}")
 
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 💬 GIVE US FEEDBACK")
+feedback_text = st.sidebar.text_area("Type your feedback/suggestions:", placeholder="Share your written feedback...", height=100, key=f"fb_text_{st.session_state.get('feedback_reset_key', 0)}")
+if st.sidebar.button("📨 Submit Feedback", key="fb_submit_btn", use_container_width=True):
+    if feedback_text.strip():
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        active_user = st.session_state.get("logged_in_user", "Unknown")
+        file_path = 'feedbacks.csv'
+        new_row = pd.DataFrame([{
+            'Timestamp': timestamp,
+            'User': active_user,
+            'Feedback': feedback_text.strip()
+        }])
+        if os.path.exists(file_path):
+            try:
+                df_existing = load_csv_safe(file_path)
+                df_updated = pd.concat([df_existing, new_row], ignore_index=True)
+            except:
+                df_updated = new_row
+        else:
+            df_updated = new_row
+        df_updated.to_csv(file_path, index=False)
+        log_event(active_user, "Feedback Submitted", "User submitted feedback")
+        st.sidebar.success("Feedback submitted! Thank you.")
+        st.session_state["feedback_reset_key"] = st.session_state.get("feedback_reset_key", 0) + 1
+        st.rerun()
+    else:
+        st.sidebar.warning("Please type some feedback before submitting.")
+
 # --- 2. WORKSPACE / SEARCH FILTERS ---
 st.markdown("### 🌳 Project Search Filter <span style='font-size: 0.8rem; font-weight: normal; color: #94A3B8; margin-left: 10px; font-family: \"Inter\";'>(Click Each Main Category Buttons Below to See the Structure of Hierarchies For Each Action)</span>", unsafe_allow_html=True)
 
@@ -1463,7 +1492,7 @@ ZAP
 # --- 4. ADMIN CONTROL CENTER ---
 st.divider()
 st.subheader("🔑 Administrative Control Center")
-admin_tabs = st.tabs(["📋 Review Queue", "➕ Nominate a Good Project", "✏️ Edit / Delete Database", "📊 Activity Logbook", "💾 Backup & CSV Tools"])
+admin_tabs = st.tabs(["📋 Review Queue", "➕ Nominate a Good Project", "✏️ Edit / Delete Database", "📊 Activity Logbook", "💾 Backup & CSV Tools", "💬 User Feedback"])
 
 # TAB 1: REVIEW QUEUE
 with admin_tabs[0]:
@@ -2023,3 +2052,32 @@ with admin_tabs[4]:
                 st.rerun()
         except Exception as e:
             st.error(f"Error reading uploaded file: {e}")
+
+# TAB 6: USER FEEDBACK
+with admin_tabs[5]:
+    st.markdown("### 💬 User Feedback Directory")
+    st.write("Access is restricted to authorized administrative personnel.")
+    
+    passcode = st.text_input("Enter Passcode to Access Feedbacks", type="password", key="feedback_view_passcode")
+    if passcode == "1111":
+        st.success("Access Granted.")
+        if os.path.exists('feedbacks.csv'):
+            try:
+                df_fb = load_csv_safe('feedbacks.csv')
+                if not df_fb.empty:
+                    if 'Timestamp' in df_fb.columns:
+                        df_fb = df_fb.sort_values(by='Timestamp', ascending=False)
+                    
+                    # Render feedbacks in a nice styled layout
+                    for i, row in df_fb.iterrows():
+                        with st.container(border=True):
+                            st.markdown(f"👤 **User:** `{row.get('User', 'Unknown')}` | 📅 **Submitted:** `{row.get('Timestamp', 'N/A')}`")
+                            st.markdown(f"**Feedback:** {row.get('Feedback', '')}")
+                else:
+                    st.info("No feedbacks submitted yet.")
+            except Exception as e:
+                st.error(f"Error loading feedbacks: {e}")
+        else:
+            st.info("No feedbacks submitted yet.")
+    elif passcode:
+        st.error("Incorrect Passcode.")
