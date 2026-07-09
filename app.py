@@ -1030,6 +1030,9 @@ with side_col2:
         st.session_state.search_clicked = False
         st.rerun()
 
+st.sidebar.markdown("---")
+q_search = st.sidebar.text_input("📝 KEYWORD SEARCH", placeholder="Search project name, ID, or description...", key=f"q_{st.session_state.search_reset_key}")
+
 # --- 2. WORKSPACE / SEARCH FILTERS ---
 col_hdr, col_reset = st.columns([0.75, 0.25])
 with col_hdr:
@@ -1316,7 +1319,6 @@ else:
 
 # --- 3. RESULTS ENGINE ---
 st.divider()
-q_search = st.text_input("📝 KEYWORD SEARCH", placeholder="Search project name, ID, or description...", key=f"q_{st.session_state.search_reset_key}")
 
 if st.session_state.search_clicked or q_search:
     df = df_raw.copy()
