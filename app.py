@@ -1467,8 +1467,11 @@ if q_search:
     df_live = load_csv_safe('projects.csv')
     matched_df = pd.DataFrame()
     if not df_live.empty:
-        # Match EXACT project name (case-insensitive, stripped)
-        matched_df = df_live[df_live['Project'].str.strip().str.lower() == q_search.strip().lower()]
+        # Match project name as substring or exact match (ignoring ULURP codes in parentheses)
+        matched_df = df_live[
+            df_live['Project'].str.contains(q_search, case=False, na=False) |
+            df_live['Project'].apply(lambda x: str(x).split('(')[0].strip().lower() == q_search.strip().lower())
+        ]
         
     if not matched_df.empty:
         st.subheader("Found Project")
