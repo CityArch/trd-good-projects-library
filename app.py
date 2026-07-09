@@ -218,18 +218,113 @@ st.markdown(f"""
     }}
 
     /* Clickable Metric Buttons */
-    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] div.stButton button {{
+    /* Column 1: Total Projects */
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(1) div.stButton button {{
         background: #0EA5E9 !important;
         border: 1px solid #38BDF8 !important;
         color: #FFFFFF !important;
     }}
-    
-    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] div.stButton button:hover {{
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(1) div.stButton button:hover {{
         background: #38BDF8 !important;
         border-color: #7DD3FC !important;
     }}
-    
-    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] div.stButton button::first-line {{
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(1) div.stButton button::first-line {{
+        color: #FFFFFF !important;
+    }}
+
+    /* Column 2: Use Waivers (Green #34D399) */
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(2) div.stButton button {{
+        background: #34D399 !important;
+        border: 1px solid #34D399 !important;
+        color: #0F172A !important;
+    }}
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(2) div.stButton button:hover {{
+        background: #059669 !important;
+        border-color: #10B981 !important;
+        color: #FFFFFF !important;
+    }}
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(2) div.stButton button::first-line {{
+        color: #0F172A !important;
+    }}
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(2) div.stButton button:hover::first-line {{
+        color: #FFFFFF !important;
+    }}
+
+    /* Column 3: Bulk Waivers (Purple #818CF8) */
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(3) div.stButton button {{
+        background: #818CF8 !important;
+        border: 1px solid #818CF8 !important;
+        color: #FFFFFF !important;
+    }}
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(3) div.stButton button:hover {{
+        background: #4F46E5 !important;
+        border-color: #6366F1 !important;
+    }}
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(3) div.stButton button::first-line {{
+        color: #FFFFFF !important;
+    }}
+
+    /* Column 4: Parking & Curbcuts (Yellow #FBBF24) */
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(4) div.stButton button {{
+        background: #FBBF24 !important;
+        border: 1px solid #FBBF24 !important;
+        color: #0F172A !important;
+    }}
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(4) div.stButton button:hover {{
+        background: #D97706 !important;
+        border-color: #F59E0B !important;
+        color: #FFFFFF !important;
+    }}
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(4) div.stButton button::first-line {{
+        color: #0F172A !important;
+    }}
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(4) div.stButton button:hover::first-line {{
+        color: #FFFFFF !important;
+    }}
+
+    /* Column 5: Open Spaces (Blue #38BDF8) */
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(5) div.stButton button {{
+        background: #38BDF8 !important;
+        border: 1px solid #38BDF8 !important;
+        color: #0F172A !important;
+    }}
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(5) div.stButton button:hover {{
+        background: #0284C7 !important;
+        border-color: #0EA5E9 !important;
+        color: #FFFFFF !important;
+    }}
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(5) div.stButton button::first-line {{
+        color: #0F172A !important;
+    }}
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(5) div.stButton button:hover::first-line {{
+        color: #FFFFFF !important;
+    }}
+
+    /* Column 6: Miscellaneous (Red #F472B6) */
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(6) div.stButton button {{
+        background: #F472B6 !important;
+        border: 1px solid #F472B6 !important;
+        color: #FFFFFF !important;
+    }}
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(6) div.stButton button:hover {{
+        background: #DB2777 !important;
+        border-color: #EC4899 !important;
+    }}
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(6) div.stButton button::first-line {{
+        color: #FFFFFF !important;
+    }}
+
+    /* Column 7: Pending Queue */
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(7) div.stButton button {{
+        background: #0EA5E9 !important;
+        border: 1px solid #38BDF8 !important;
+        color: #FFFFFF !important;
+    }}
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(7) div.stButton button:hover {{
+        background: #38BDF8 !important;
+        border-color: #7DD3FC !important;
+    }}
+    div:has(div.metrics-row-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(7) div.stButton button::first-line {{
         color: #FFFFFF !important;
     }}
     
