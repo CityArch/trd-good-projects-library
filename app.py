@@ -1169,7 +1169,7 @@ if st.sidebar.button("📨 Submit Feedback", key="fb_submit_btn", use_container_
         st.sidebar.warning("Please type some feedback before submitting.")
 
 # --- 2. WORKSPACE / SEARCH FILTERS ---
-st.markdown("### 🌳 Project Search Filter <span style='font-size: 0.8rem; font-weight: normal; color: #94A3B8; margin-left: 10px; font-family: \"Inter\";'>(Click Each Main Category Buttons Below to See the Structure of Hierarchies For Each Action)</span>", unsafe_allow_html=True)
+st.markdown("<h3 style='font-family: \"Outfit\"; font-weight: 700; margin-top: 10px; margin-bottom: 12px; color: #FFFFFF; font-size: 1.25rem;'>🌳 Project Search Filter <span style='font-size: 0.8rem; font-weight: normal; color: #94A3B8; margin-left: 10px; font-family: \"Inter\";'>(Click Each Main Category Buttons Below to See the Structure of Hierarchies For Each Action)</span></h3>", unsafe_allow_html=True)
 
 if search_mode == "Single-Action Search":
     if len(st.session_state.multi_iterations) != 1:
