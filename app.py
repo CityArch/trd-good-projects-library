@@ -962,27 +962,27 @@ with col_m1:
 
 with col_m2:
     st.markdown('<div class="metric-marker"></div>', unsafe_allow_html=True)
-    if st.button(f"{use_waivers_cnt}\nUse Waivers", key="btn_metric_use", use_container_width=True):
+    if st.button(f"{use_waivers_cnt}\n🟢 Use Waivers", key="btn_metric_use", use_container_width=True):
         st.session_state.active_metric_view = "Use Waivers"
 
 with col_m3:
     st.markdown('<div class="metric-marker"></div>', unsafe_allow_html=True)
-    if st.button(f"{bulk_waivers_cnt}\nBulk Waivers", key="btn_metric_bulk", use_container_width=True):
+    if st.button(f"{bulk_waivers_cnt}\n🟣 Bulk Waivers", key="btn_metric_bulk", use_container_width=True):
         st.session_state.active_metric_view = "Bulk Waivers"
 
 with col_m4:
     st.markdown('<div class="metric-marker"></div>', unsafe_allow_html=True)
-    if st.button(f"{parking_cnt}\nParking & Curbcuts", key="btn_metric_parking", use_container_width=True):
+    if st.button(f"{parking_cnt}\n🟡 Parking & Curbcuts", key="btn_metric_parking", use_container_width=True):
         st.session_state.active_metric_view = "Parking & Curbcuts"
 
 with col_m5:
     st.markdown('<div class="metric-marker"></div>', unsafe_allow_html=True)
-    if st.button(f"{open_space_cnt}\nOpen Spaces", key="btn_metric_space", use_container_width=True):
+    if st.button(f"{open_space_cnt}\n🔵 Open Spaces", key="btn_metric_space", use_container_width=True):
         st.session_state.active_metric_view = "Open Spaces"
 
 with col_m6:
     st.markdown('<div class="metric-marker"></div>', unsafe_allow_html=True)
-    if st.button(f"{misc_cnt}\nMiscellaneous", key="btn_metric_misc", use_container_width=True):
+    if st.button(f"{misc_cnt}\n🔴 Miscellaneous", key="btn_metric_misc", use_container_width=True):
         st.session_state.active_metric_view = "Miscellaneous"
 
 with col_m7:
