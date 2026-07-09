@@ -914,16 +914,7 @@ if "nominate_reset_key" not in st.session_state: st.session_state.nominate_reset
 
 df_raw = load_csv_safe('projects.csv')
 
-# Auto-bring Total Projects list if keyword search matches any projects in the database
-search_key = f"q_{st.session_state.search_reset_key}"
-q_search_val = st.session_state.get(search_key, "").strip()
-if q_search_val and not df_raw.empty:
-    name_matches = df_raw[
-        df_raw['Project'].str.contains(q_search_val, case=False, na=False) |
-        df_raw['Project ID'].astype(str).str.contains(q_search_val, case=False, na=False)
-    ]
-    if not name_matches.empty:
-        st.session_state.active_metric_view = "Total Projects"
+
 
 # --- HERO SECTION ---
 st.markdown(f"""
@@ -1472,7 +1463,109 @@ else:
 # --- 3. RESULTS ENGINE ---
 st.divider()
 
-if st.session_state.search_clicked or q_search:
+if q_search:
+    df_live = load_csv_safe('projects.csv')
+    matched_df = pd.DataFrame()
+    if not df_live.empty:
+        # Match EXACT project name (case-insensitive, stripped)
+        matched_df = df_live[df_live['Project'].str.strip().str.lower() == q_search.strip().lower()]
+        
+    if not matched_df.empty:
+        st.subheader("Found Project")
+        grouped_projects = matched_df.groupby('Project ID')
+        res_grid = st.columns(3)
+        for idx, (p_id, gp) in enumerate(grouped_projects):
+            with res_grid[idx % 3]:
+                r1 = gp.iloc[0]
+                cert_yr = r1.get('Cert Year', r1.get('Cert Date', ''))
+                
+                # Show with a white bold frame around the box!
+                card_style = 'style="border: 3px solid #FFFFFF !important; box-shadow: 0 12px 40px rgba(255, 255, 255, 0.25) !important;"'
+                card_html = f"""<div class="glass-card" {card_style}>
+<div>
+<h3 style="margin: 0; font-size: 1.6rem; color: #FFFFFF; font-family: 'Inter', sans-serif; font-weight: 600; line-height: 1.25;">{r1['Project']}</h3>
+<div style="font-family: 'Fira Code', 'Roboto Mono', monospace; font-size: 0.85rem; color: #94A3B8; margin-top: 12px; margin-bottom: 12px; font-weight: 500;">
+ID: {p_id} &nbsp;|&nbsp; Year: {cert_yr}
+</div>"""
+
+                desc_val = str(r1.get('Project Desc.', '')).strip()
+                if desc_val and desc_val.lower() not in ["", "nan", "none"]:
+                    card_html += f"""
+<p style="font-size: 0.9rem; color: #CBD5E1; line-height: 1.4; margin-top: 8px; margin-bottom: 12px; font-family: 'Inter', sans-serif;">{desc_val}</p>"""
+
+                # Get ALL unique sample categories and ZR sections for this project from the raw database
+                full_gp = df_raw[df_raw['Project ID'] == p_id] if not df_raw.empty else gp
+                
+                samples = []
+                for s in full_gp['Sample Categories'].dropna().unique():
+                    s_clean = str(s).strip()
+                    if s_clean and s_clean.lower() not in ["", "nan", "none", "--"]:
+                        if s_clean not in samples:
+                            samples.append(s_clean)
+                sample_val = ", ".join(samples)
+                
+                zr_sections = []
+                for col in ['ZR Section', 'ZR Sections']:
+                    if col in full_gp.columns:
+                        for z in full_gp[col].dropna().unique():
+                            z_clean = str(z).strip()
+                            if z_clean and z_clean.lower() not in ["", "nan", "none", "--"]:
+                                if z_clean not in zr_sections:
+                                    zr_sections.append(z_clean)
+                zr_val = ", ".join(zr_sections)
+
+                if zr_val:
+                    card_html += f"""
+<div style="font-family: 'Fira Code', 'Roboto Mono', monospace; font-size: 0.8rem; color: #94A3B8; margin-bottom: 6px;">
+<strong>ZR Section:</strong> {zr_val}
+</div>"""
+                if sample_val:
+                    card_html += f"""
+<div style="font-family: 'Fira Code', 'Roboto Mono', monospace; font-size: 0.8rem; color: #94A3B8; margin-bottom: 12px;">
+<strong>Sample Category/Categories:</strong> {sample_val}
+</div>"""
+
+                card_html += """
+<div style="margin-bottom: 12px;">"""
+                
+                for _, r in gp.iterrows():
+                    l1 = r['Level1']
+                    l2 = r['Level2']
+                    l3s = [str(r[c]).strip() for c in ['Level3-1','Level3-2','Level3-3','Level3-4'] if str(r[c]).strip() and str(r[c]).lower() not in ["", "nan", "--"]]
+                    
+                    # Format category chain: Level1 > Level2 > Level3-1, Level3-2...
+                    chain = f"{l1} > {l2}" + (f" > {', '.join(l3s)}" if l3s else "")
+                    
+                    card_html += f"""
+<div style="font-family: 'Fira Code', 'Roboto Mono', monospace; font-size: 0.85rem; color: #94A3B8; margin-bottom: 12px; line-height: 1.5;">
+• {chain}
+</div>"""
+                    
+                    rem_val = str(r.get('Remarks', '')).strip()
+                    if rem_val and rem_val.lower() not in ["", "nan", "none"]:
+                        card_html += f"""
+<div class="remarks-box">
+<strong style="color: #FFFFFF; font-family: 'Inter', sans-serif; display: block; margin-bottom: 4px; font-weight: 600;">Remarks:</strong>
+<span style="font-family: 'Fira Code', 'Roboto Mono', monospace; color: #E2E8F0; font-size: 0.85rem;">{rem_val}</span>
+</div>"""
+                
+                card_html += """
+</div>
+</div>"""
+                
+                zap_url = str(r1.get('Approval Pack/NOC', '')).strip()
+                if zap_url and zap_url.lower() not in ["", "nan", "none"]:
+                    card_html += f"""
+<a href="{zap_url}" target="_blank" class="zap-btn" style="font-family: 'Inter', sans-serif; font-weight: 600;">
+ZAP
+</a>"""
+                
+                card_html += "</div>"
+                st.markdown(card_html, unsafe_allow_html=True)
+    else:
+        st.info("Nothing Matched the Search")
+
+elif st.session_state.search_clicked:
     df = df_raw.copy()
     valid_filters = [s for s in st.session_state.multi_iterations if s['l1'] != "--"]
 
@@ -1499,17 +1592,6 @@ if st.session_state.search_clicked or q_search:
         m_ids = df_raw.groupby('Project ID').filter(filter_engine)['Project ID'].unique()
         df = df_raw[df_raw['Project ID'].isin(m_ids)]
 
-    if q_search:
-        df = df[
-            df['Project'].str.contains(q_search, case=False, na=False) | 
-            df['Project ID'].astype(str).str.contains(q_search, case=False, na=False) | 
-            df.get('Remarks', pd.Series(dtype=str)).str.contains(q_search, case=False, na=False) |
-            df.get('Project Desc.', pd.Series(dtype=str)).str.contains(q_search, case=False, na=False) |
-            df.get('ZR Section', pd.Series(dtype=str)).str.contains(q_search, case=False, na=False) |
-            df.get('ZR Sections', pd.Series(dtype=str)).str.contains(q_search, case=False, na=False) |
-            df.get('Sample Categories', pd.Series(dtype=str)).str.contains(q_search, case=False, na=False)
-        ]
-
     grouped_projects = df.groupby('Project ID')
     st.subheader(f"FOUND {len(grouped_projects)} PROJECTS MATCHING SELECTION")
     
@@ -1523,7 +1605,7 @@ if st.session_state.search_clicked or q_search:
             # otherwise Streamlit's markdown parser will interpret them as code blocks.
             cert_yr = r1.get('Cert Year', r1.get('Cert Date', ''))
             
-            # Check if this project matches the keyword search for bold white border styling
+            # Check if this project matches the keyword search for bold white border styling (fallback just in case)
             is_highlighted = False
             search_key = f"q_{st.session_state.search_reset_key}"
             q_search_val = st.session_state.get(search_key, "").strip()
