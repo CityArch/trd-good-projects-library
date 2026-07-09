@@ -250,6 +250,67 @@ st.markdown(f"""
         background: transparent !important;
     }}
     
+    /* Tree Buttons Styling */
+    div:has(div.tree-buttons-marker) + div[data-testid="stHorizontalBlock"] div.stButton button {{
+        background: rgba(255, 255, 255, 0.02) !important;
+        color: #FFFFFF !important;
+        font-weight: 600 !important;
+        font-family: 'Outfit', sans-serif !important;
+        border-radius: 8px !important;
+        transition: all 0.3s ease !important;
+        border: 1px solid #374151 !important;
+    }}
+    
+    /* Column 1 (Use Waivers): Green */
+    div:has(div.tree-buttons-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(1) div.stButton button {{
+        border: 1px solid #34D399 !important;
+    }}
+    div:has(div.tree-buttons-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(1) div.stButton button:hover {{
+        background: rgba(52, 211, 153, 0.15) !important;
+        box-shadow: 0 0 10px rgba(52, 211, 153, 0.3) !important;
+        border-color: #34D399 !important;
+    }}
+    
+    /* Column 2 (Bulk Waivers): Purple */
+    div:has(div.tree-buttons-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(2) div.stButton button {{
+        border: 1px solid #818CF8 !important;
+    }}
+    div:has(div.tree-buttons-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(2) div.stButton button:hover {{
+        background: rgba(129, 140, 248, 0.15) !important;
+        box-shadow: 0 0 10px rgba(129, 140, 248, 0.3) !important;
+        border-color: #818CF8 !important;
+    }}
+    
+    /* Column 3 (Parking & Curbcuts): Yellow */
+    div:has(div.tree-buttons-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(3) div.stButton button {{
+        border: 1px solid #FBBF24 !important;
+    }}
+    div:has(div.tree-buttons-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(3) div.stButton button:hover {{
+        background: rgba(251, 191, 36, 0.15) !important;
+        box-shadow: 0 0 10px rgba(251, 191, 36, 0.3) !important;
+        border-color: #FBBF24 !important;
+    }}
+    
+    /* Column 4 (Open Space): Blue */
+    div:has(div.tree-buttons-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(4) div.stButton button {{
+        border: 1px solid #38BDF8 !important;
+    }}
+    div:has(div.tree-buttons-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(4) div.stButton button:hover {{
+        background: rgba(56, 189, 248, 0.15) !important;
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.3) !important;
+        border-color: #38BDF8 !important;
+    }}
+    
+    /* Column 5 (Miscellaneous): Red */
+    div:has(div.tree-buttons-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(5) div.stButton button {{
+        border: 1px solid #F472B6 !important;
+    }}
+    div:has(div.tree-buttons-marker) + div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(5) div.stButton button:hover {{
+        background: rgba(244, 114, 182, 0.15) !important;
+        box-shadow: 0 0 10px rgba(244, 114, 182, 0.3) !important;
+        border-color: #F472B6 !important;
+    }}
+    
     .metric-value {{
         font-size: 1.8rem;
         font-weight: 700;
@@ -546,6 +607,36 @@ def format_l1(option):
         "Miscellaneous": "🔴 Miscellaneous"
     }
     return mapping.get(option, option)
+
+def render_category_tree(l1_key):
+    style = L1_STYLE.get(l1_key, {"color": "green", "hex": "#34D399", "emoji": "🟢", "name": l1_key})
+    emoji = style["emoji"]
+    name = style["name"]
+    hex_color = style["hex"]
+    
+    tree_html = f"""
+    <div style="font-family: 'Fira Code', 'Roboto Mono', monospace; font-size: 0.95rem; line-height: 1.7; color: #E2E8F0; white-space: pre-wrap; padding-left: 10px;">
+    """
+    
+    category_data = TREE_DATA.get(l1_key, {})
+    l2_keys = [k for k in category_data.keys() if k != "image_file"]
+    
+    for i, l2 in enumerate(l2_keys):
+        is_last_l2 = (i == len(l2_keys) - 1)
+        l2_prefix = "└── " if is_last_l2 else "├── "
+        l2_display = l2.replace("_", " ")
+        tree_html += f'<div style="font-weight: 700; color: {hex_color}; margin-top: 5px;">{l2_prefix}{l2_display}</div>'
+        
+        l3_list = category_data.get(l2, [])
+        if l3_list:
+            l3_branch = "    " if is_last_l2 else "│   "
+            for j, l3 in enumerate(l3_list):
+                is_last_l3 = (j == len(l3_list) - 1)
+                l3_prefix = "└── " if is_last_l3 else "├── "
+                tree_html += f'<div style="color: #94A3B8; padding-left: 20px;">{l3_branch}{l3_prefix}{l3}</div>'
+                
+    tree_html += "</div>"
+    return tree_html
 
 # --- TREE STRUCTURE DATA ---
 TREE_DATA = {
@@ -1042,6 +1133,42 @@ else:
                             </div>
                             """, unsafe_allow_html=True)
                             
+    # 🌳 Learn L1-L2-L3 Category Tree Structure
+    st.markdown('<div class="tree-buttons-marker"></div>', unsafe_allow_html=True)
+    col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns(5)
+    with col_t1:
+        if st.button("🟢 Use Waivers", key="btn_tree_search_use", use_container_width=True):
+            st.session_state.active_tree_search = "Use_Waivers"
+    with col_t2:
+        if st.button("🟣 Bulk Waivers", key="btn_tree_search_bulk", use_container_width=True):
+            st.session_state.active_tree_search = "Bulk_Waivers"
+    with col_t3:
+        if st.button("🟡 Parking & Curb", key="btn_tree_search_parking", use_container_width=True):
+            st.session_state.active_tree_search = "Parking_Curbcuts"
+    with col_t4:
+        if st.button("🔵 Open Space", key="btn_tree_search_space", use_container_width=True):
+            st.session_state.active_tree_search = "Open_Space"
+    with col_t5:
+        if st.button("🔴 Miscellaneous", key="btn_tree_search_misc", use_container_width=True):
+            st.session_state.active_tree_search = "Miscellaneous"
+            
+    if st.session_state.get("active_tree_search"):
+        t_key = st.session_state.active_tree_search
+        t_style = L1_STYLE.get(t_key, {"color": "green", "hex": "#34D399", "emoji": "🟢", "name": t_key})
+        
+        with st.container(border=True):
+            t_col_head, t_col_close = st.columns([15, 1])
+            with t_col_head:
+                st.markdown(f"#### {t_style['emoji']} {t_style['name']} Tree Structure")
+            with t_col_close:
+                st.markdown('<div class="close-btn">', unsafe_allow_html=True)
+                if st.button("❌", key="btn_tree_search_close", help="Close tree view", use_container_width=True):
+                    st.session_state.active_tree_search = None
+                    st.rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            st.markdown(render_category_tree(t_key), unsafe_allow_html=True)
+
     if "search_l1_list" not in st.session_state:
         st.session_state.search_l1_list = []
         
@@ -1430,6 +1557,42 @@ with admin_tabs[1]:
     with col_inputs2:
         add_sample = st.text_input("Sample Categories", placeholder="e.g., Sky Exposure Plane", key=f"add_sample_{st.session_state.nominate_reset_key}")
         
+    # 🌳 Learn L1-L2-L3 Category Tree Structure
+    st.markdown('<div class="tree-buttons-marker"></div>', unsafe_allow_html=True)
+    col_nt1, col_nt2, col_nt3, col_nt4, col_nt5 = st.columns(5)
+    with col_nt1:
+        if st.button("🟢 Use Waivers", key="btn_tree_nominate_use", use_container_width=True):
+            st.session_state.active_tree_nominate = "Use_Waivers"
+    with col_nt2:
+        if st.button("🟣 Bulk Waivers", key="btn_tree_nominate_bulk", use_container_width=True):
+            st.session_state.active_tree_nominate = "Bulk_Waivers"
+    with col_nt3:
+        if st.button("🟡 Parking & Curb", key="btn_tree_nominate_parking", use_container_width=True):
+            st.session_state.active_tree_nominate = "Parking_Curbcuts"
+    with col_nt4:
+        if st.button("🔵 Open Space", key="btn_tree_nominate_space", use_container_width=True):
+            st.session_state.active_tree_nominate = "Open_Space"
+    with col_nt5:
+        if st.button("🔴 Miscellaneous", key="btn_tree_nominate_misc", use_container_width=True):
+            st.session_state.active_tree_nominate = "Miscellaneous"
+            
+    if st.session_state.get("active_tree_nominate"):
+        t_key = st.session_state.active_tree_nominate
+        t_style = L1_STYLE.get(t_key, {"color": "green", "hex": "#34D399", "emoji": "🟢", "name": t_key})
+        
+        with st.container(border=True):
+            t_col_head, t_col_close = st.columns([15, 1])
+            with t_col_head:
+                st.markdown(f"#### {t_style['emoji']} {t_style['name']} Tree Structure")
+            with t_col_close:
+                st.markdown('<div class="close-btn">', unsafe_allow_html=True)
+                if st.button("❌", key="btn_tree_nominate_close", help="Close tree view", use_container_width=True):
+                    st.session_state.active_tree_nominate = None
+                    st.rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            st.markdown(render_category_tree(t_key), unsafe_allow_html=True)
+
     add_l1_list = st.multiselect("Level 1 Categories * (Select one or more)", list(TREE_DATA.keys()), key=f"add_l1_list_{st.session_state.nominate_reset_key}", format_func=format_l1)
 
     # Dynamic selection of Level 2 and Level 3 categories for EACH selected Level 1 category
