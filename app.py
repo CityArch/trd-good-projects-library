@@ -1139,6 +1139,15 @@ with side_col2:
 st.sidebar.markdown("---")
 q_search = st.sidebar.text_input("📝 KEYWORD SEARCH", placeholder="Search project name, ID, or description...", key=f"q_{st.session_state.search_reset_key}")
 
+kw_col1, kw_col2 = st.sidebar.columns(2)
+with kw_col1:
+    if st.button("🔍 SEARCH", key="kw_search_btn", type="primary", use_container_width=True):
+        st.rerun()
+with kw_col2:
+    if st.button("🧹 CLEAR", key="kw_clear_btn", use_container_width=True):
+        st.session_state.search_reset_key += 1
+        st.rerun()
+
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 💬 GIVE US FEEDBACK")
 feedback_text = st.sidebar.text_area("Type your feedback/suggestions:", placeholder="Share your written feedback...", height=100, key=f"fb_text_{st.session_state.get('feedback_reset_key', 0)}")
