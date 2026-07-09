@@ -1042,6 +1042,42 @@ if search_mode == "Single-Action Search":
         
     workspace_cols = st.columns(1)
     with workspace_cols[0]:
+        # 🌳 Learn L1-L2-L3 Category Tree Structure
+        st.markdown('<div class="tree-buttons-marker"></div>', unsafe_allow_html=True)
+        col_st1, col_st2, col_st3, col_st4, col_st5 = st.columns(5)
+        with col_st1:
+            if st.button("🟢 Use Waivers", key="btn_tree_single_use", use_container_width=True):
+                st.session_state.active_tree_single = "Use_Waivers"
+        with col_st2:
+            if st.button("🟣 Bulk Waivers", key="btn_tree_single_bulk", use_container_width=True):
+                st.session_state.active_tree_single = "Bulk_Waivers"
+        with col_st3:
+            if st.button("🟡 Parking & Curb", key="btn_tree_single_parking", use_container_width=True):
+                st.session_state.active_tree_single = "Parking_Curbcuts"
+        with col_st4:
+            if st.button("🔵 Open Space", key="btn_tree_single_space", use_container_width=True):
+                st.session_state.active_tree_single = "Open_Space"
+        with col_st5:
+            if st.button("🔴 Miscellaneous", key="btn_tree_single_misc", use_container_width=True):
+                st.session_state.active_tree_single = "Miscellaneous"
+                
+        if st.session_state.get("active_tree_single"):
+            t_key = st.session_state.active_tree_single
+            t_style = L1_STYLE.get(t_key, {"color": "green", "hex": "#34D399", "emoji": "🟢", "name": t_key})
+            
+            with st.container(border=True):
+                t_col_head, t_col_close = st.columns([15, 1])
+                with t_col_head:
+                    st.markdown(f"#### {t_style['emoji']} {t_style['name']} Tree Structure")
+                with t_col_close:
+                    st.markdown('<div class="close-btn">', unsafe_allow_html=True)
+                    if st.button("❌", key="btn_tree_single_close", help="Close tree view", use_container_width=True):
+                        st.session_state.active_tree_single = None
+                        st.rerun()
+                    st.markdown('</div>', unsafe_allow_html=True)
+                
+                st.markdown(render_category_tree(t_key), unsafe_allow_html=True)
+
         sel_l1 = st.session_state.multi_iterations[0]["l1"]
         if sel_l1 != "--":
             img_b64 = get_base64_image(TREE_DATA[sel_l1]["image_file"])
