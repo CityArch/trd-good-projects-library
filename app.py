@@ -856,6 +856,7 @@ if os.path.exists('review_queue.csv'):
         pass
 
 # Render stats boxes as clickable buttons
+st.markdown("<h3 style='font-family: \"Outfit\"; font-weight: 700; margin-top: 10px; margin-bottom: 12px; color: #FFFFFF; font-size: 1.25rem;'>📊 Current Good Projects in the Database</h3>", unsafe_allow_html=True)
 st.markdown('<div class="metrics-row-marker"></div>', unsafe_allow_html=True)
 col_m1, col_m2, col_m3, col_m4, col_m5, col_m6, col_m7 = st.columns(7)
 
