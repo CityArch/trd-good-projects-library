@@ -914,6 +914,17 @@ if "nominate_reset_key" not in st.session_state: st.session_state.nominate_reset
 
 df_raw = load_csv_safe('projects.csv')
 
+# Auto-bring Total Projects list if keyword search matches any projects in the database
+search_key = f"q_{st.session_state.search_reset_key}"
+q_search_val = st.session_state.get(search_key, "").strip()
+if q_search_val and not df_raw.empty:
+    name_matches = df_raw[
+        df_raw['Project'].str.contains(q_search_val, case=False, na=False) |
+        df_raw['Project ID'].astype(str).str.contains(q_search_val, case=False, na=False)
+    ]
+    if not name_matches.empty:
+        st.session_state.active_metric_view = "Total Projects"
+
 # --- HERO SECTION ---
 st.markdown(f"""
 <div class='hero-section'>
@@ -1502,7 +1513,19 @@ if st.session_state.search_clicked or q_search:
             # Note: We must not include leading whitespace/indentation in the multiline HTML strings,
             # otherwise Streamlit's markdown parser will interpret them as code blocks.
             cert_yr = r1.get('Cert Year', r1.get('Cert Date', ''))
-            card_html = f"""<div class="glass-card">
+            
+            # Check if this project matches the keyword search for bold white border styling
+            is_highlighted = False
+            search_key = f"q_{st.session_state.search_reset_key}"
+            q_search_val = st.session_state.get(search_key, "").strip()
+            if q_search_val:
+                name_match = (q_search_val.lower() in str(r1['Project']).lower())
+                id_match = (q_search_val.lower() in str(p_id).lower())
+                if name_match or id_match:
+                    is_highlighted = True
+            
+            card_style = 'style="border: 3px solid #FFFFFF !important; box-shadow: 0 12px 40px rgba(255, 255, 255, 0.25) !important;"' if is_highlighted else ""
+            card_html = f"""<div class="glass-card" {card_style}>
 <div>
 <h3 style="margin: 0; font-size: 1.6rem; color: #FFFFFF; font-family: 'Inter', sans-serif; font-weight: 600; line-height: 1.25;">{r1['Project']}</h3>
 <div style="font-family: 'Fira Code', 'Roboto Mono', monospace; font-size: 0.85rem; color: #94A3B8; margin-top: 12px; margin-bottom: 12px; font-weight: 500;">
