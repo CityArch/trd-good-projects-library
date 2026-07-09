@@ -1068,7 +1068,7 @@ if search_mode == "Single-Action Search":
             with st.container(border=True):
                 t_col_head, t_col_close = st.columns([15, 1])
                 with t_col_head:
-                    st.markdown(f"#### {t_style['emoji']} {t_style['name']} Tree Structure")
+                    st.markdown(f"#### {t_style['emoji']} {t_style['name']} Categorical Hierarchy")
                 with t_col_close:
                     st.markdown('<div class="close-btn">', unsafe_allow_html=True)
                     if st.button("❌", key="btn_tree_single_close", help="Close tree view", use_container_width=True):
@@ -1195,7 +1195,7 @@ else:
         with st.container(border=True):
             t_col_head, t_col_close = st.columns([15, 1])
             with t_col_head:
-                st.markdown(f"#### {t_style['emoji']} {t_style['name']} Tree Structure")
+                st.markdown(f"#### {t_style['emoji']} {t_style['name']} Categorical Hierarchy")
             with t_col_close:
                 st.markdown('<div class="close-btn">', unsafe_allow_html=True)
                 if st.button("❌", key="btn_tree_search_close", help="Close tree view", use_container_width=True):
@@ -1619,7 +1619,7 @@ with admin_tabs[1]:
         with st.container(border=True):
             t_col_head, t_col_close = st.columns([15, 1])
             with t_col_head:
-                st.markdown(f"#### {t_style['emoji']} {t_style['name']} Tree Structure")
+                st.markdown(f"#### {t_style['emoji']} {t_style['name']} Categorical Hierarchy")
             with t_col_close:
                 st.markdown('<div class="close-btn">', unsafe_allow_html=True)
                 if st.button("❌", key="btn_tree_nominate_close", help="Close tree view", use_container_width=True):
