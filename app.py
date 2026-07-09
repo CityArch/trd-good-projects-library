@@ -977,21 +977,35 @@ if st.session_state.get("active_metric_view"):
                                     zr_sections.append(z_clean)
                 p_zr = ", ".join(zr_sections) if zr_sections else "N/A"
                 
-                # Render item as a list item
+                # Retrieve all main categories this project belongs to
+                proj_categories = list(gp_proj['Level1'].dropna().unique())
+                
+                # Build badges HTML
+                badge_html = ""
+                for cat in proj_categories:
+                    style = L1_STYLE.get(cat, {"color": "green", "hex": "#34D399", "emoji": "🟢", "name": cat})
+                    badge_html += f'<span style="display: inline-block; background-color: {style["hex"]}; color: #0F172A; padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; margin-left: 6px; font-family: \'Outfit\';">{style["emoji"]} {style["name"].upper()}</span>'
+                
+                # Handle ZAP link display textually
+                if p_zap and p_zap.lower() not in ["", "nan", "none"]:
+                    zap_text = f'<a href="{p_zap}" target="_blank" style="color: #38BDF8; font-weight: 500; text-decoration: underline;">View ZAP Link</a>'
+                else:
+                    zap_text = '<span style="color: #64748B;">No ZAP Link</span>'
+                
+                # Render item as a list item without the button column
                 with st.container(border=True):
-                    item_col1, item_col2 = st.columns([5, 1])
-                    with item_col1:
-                        st.markdown(f"**Project:** {p_name} | **ID:** `{p_id}`")
-                        st.markdown(f"**ZR Section:** `{p_zr}` | **Sample Category/Categories:** `{p_sample}`")
-                    with item_col2:
-                        if p_zap and p_zap.lower() not in ["", "nan", "none"]:
-                            st.markdown(f"""
-                            <a href="{p_zap}" target="_blank" class="zap-btn" style="display: block; text-align: center; font-family: 'Inter', sans-serif; font-weight: 600; padding: 8px 0; border-radius: 8px; text-decoration: none; margin-top: 10px;">
-                                ZAP LINK
-                            </a>
-                            """, unsafe_allow_html=True)
-                        else:
-                            st.markdown("<div style='text-align: center; color: #64748B; font-size: 0.85rem; margin-top: 15px;'>No ZAP Link</div>", unsafe_allow_html=True)
+                    st.markdown(f"""
+                    <div style="font-family: 'Inter', sans-serif; line-height: 1.5;">
+                        <div style="margin-bottom: 6px;">
+                            <strong>Project:</strong> {p_name} {badge_html} | <strong>ID:</strong> <code>{p_id}</code>
+                        </div>
+                        <div style="font-size: 0.9rem; color: #E2E8F0;">
+                            <strong>ZR Section:</strong> <code>{p_zr}</code> | 
+                            <strong>Sample Category/Categories:</strong> <code>{p_sample}</code> | 
+                            <strong>ZAP Link:</strong> {zap_text}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
 # --- 1. SIDEBAR CONFIG ---
 if "logged_in_user" in st.session_state:
