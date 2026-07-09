@@ -1587,7 +1587,7 @@ ZAP
 # --- 4. ADMIN CONTROL CENTER ---
 st.divider()
 st.subheader("🔑 Administrative Control Center")
-admin_tabs = st.tabs(["📋 Review Queue", "➕ Nominate a Good Project", "✏️ Edit / Delete Database", "📊 Activity Logbook", "💾 Backup & CSV Tools", "💬 User Feedback"])
+admin_tabs = st.tabs(["📋 Review Queue", "➕ Nominate a Good Project", "✏️ Edit Projects", "📊 Activity Logbook", "💾 Backup & CSV Tools", "💬 User Feedback"])
 
 # TAB 1: REVIEW QUEUE
 with admin_tabs[0]:
@@ -1864,9 +1864,9 @@ with admin_tabs[1]:
             st.rerun()
 
 
-# TAB 3: EDIT / DELETE EXISTING PROJECTS
+# TAB 3: EDIT EXISTING PROJECTS
 with admin_tabs[2]:
-    st.markdown("### ✏️ Edit / Delete Existing Projects")
+    st.markdown("### ✏️ Edit Existing Projects")
     df_live = load_csv_safe('projects.csv')
     if df_live.empty:
         st.info("No projects available to edit.")
@@ -1938,12 +1938,6 @@ with admin_tabs[2]:
                         
                     row_remarks = st.text_area(f"Remarks", value=row.get('Remarks', ''), key=f"row_rem_{real_index}")
                     
-                    if st.button("🗑️ Delete This Path", key=f"del_path_{real_index}", type="secondary"):
-                        df_new_live = df_live.drop(real_index)
-                        df_new_live.to_csv('projects.csv', index=False, encoding='utf-8-sig')
-                        st.success("Path deleted!")
-                        st.rerun()
-                        
                     l3_vals = ["", "", "", ""]
                     for l_idx, val in enumerate(selected_l3[:4]):
                         l3_vals[l_idx] = val
@@ -1969,7 +1963,7 @@ with admin_tabs[2]:
                     })
             
             st.divider()
-            act_col1, act_col2, act_col3 = st.columns(3)
+            act_col1, act_col2 = st.columns(2)
             with act_col1:
                 if st.button("💾 SAVE ALL CHANGES", type="primary", use_container_width=True):
                     for item in updated_rows:
@@ -2012,14 +2006,6 @@ with admin_tabs[2]:
                     save_row('projects.csv', new_row)
                     log_event(st.session_state.logged_in_user, "Add Project Path", f"Added new classification path to project '{edit_name}' (ID: {sel_proj_id})")
                     st.success("New classification path added! Scroll down to edit it.")
-                    st.rerun()
-            with act_col3:
-                if st.button("🚨 DELETE ENTIRE PROJECT", type="primary", use_container_width=True):
-                    df_new_live = df_live[df_live['Project ID'] != sel_proj_id]
-                    df_new_live.to_csv('projects.csv', index=False)
-                    log_event(st.session_state.logged_in_user, "Delete Project", f"Deleted entire project '{edit_name}' (ID: {sel_proj_id}) from live database")
-                    st.warning(f"Deleted project {edit_name} and all its classification paths.")
-                    st.session_state.edit_reset_key += 1
                     st.rerun()
 
 # TAB 4: ACTIVITY LOGBOOK
