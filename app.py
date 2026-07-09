@@ -1585,20 +1585,39 @@ ZAP
             st.markdown(card_html, unsafe_allow_html=True)
 
 # --- 4. ADMIN CONTROL CENTER ---
+if "admin_panel_open" not in st.session_state:
+    st.session_state.admin_panel_open = True
+
+if not st.session_state.admin_panel_open:
+    st.divider()
+    col_open_admin, _ = st.columns([0.25, 0.75])
+    with col_open_admin:
+        if st.button("🔑 Open Admin Control Center", key="open_admin_panel_btn", use_container_width=True):
+            st.session_state.admin_panel_open = True
+            st.rerun()
+    st.stop()
+
 st.divider()
 st.subheader("🔑 Administrative Control Center")
 admin_tabs = st.tabs(["📋 Review Queue", "➕ Nominate a Good Project", "✏️ Edit Projects", "📊 Activity Logbook", "💾 Backup & CSV Tools", "💬 User Feedback"])
 
 # TAB 1: REVIEW QUEUE
 with admin_tabs[0]:
+    t_head, t_close = st.columns([15, 1])
+    with t_head:
+        st.markdown("### 📋 Pending Review Queue")
+    with t_close:
+        st.markdown('<div class="close-btn">', unsafe_allow_html=True)
+        if st.button("❌", key="close_admin_queue", help="Close Admin Panel", use_container_width=True):
+            st.session_state.admin_panel_open = False
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+        
     q_df = load_csv_safe('review_queue.csv')
     if not q_df.empty:
         for role_col in ['Vote_PM', 'Vote_TL', 'Vote_DD', 'Vote_D', 'Nominator']:
             if role_col not in q_df.columns:
                 q_df[role_col] = ""
-    
-    # 1. PENDING REVIEW QUEUE
-    st.markdown("### 📋 Pending Review Queue")
     
     pending_df = q_df[q_df['Status'].str.strip().str.lower() == 'pending'] if not q_df.empty else pd.DataFrame()
     approved_df = q_df[q_df['Status'].str.strip().str.lower() == 'approved'] if not q_df.empty else pd.DataFrame()
@@ -1723,7 +1742,15 @@ with admin_tabs[0]:
 
 # TAB 2: ADD NEW ENTRY
 with admin_tabs[1]:
-    st.markdown("### ➕ Nominate a Good Project")
+    t_head, t_close = st.columns([15, 1])
+    with t_head:
+        st.markdown("### ➕ Nominate a Good Project")
+    with t_close:
+        st.markdown('<div class="close-btn">', unsafe_allow_html=True)
+        if st.button("❌", key="close_admin_nominate", help="Close Admin Panel", use_container_width=True):
+            st.session_state.admin_panel_open = False
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
     add_name = st.text_input("Project Name *", placeholder="e.g., Queens Plaza Residential", key=f"add_name_{st.session_state.nominate_reset_key}")
     add_id = st.text_input("Project ID / ULURP Number *", placeholder="e.g., N210045ZRK", key=f"add_id_{st.session_state.nominate_reset_key}")
     add_year = st.text_input("Certification Year (Cert Year)", placeholder="e.g., 2024 or 21-Sep", key=f"add_year_{st.session_state.nominate_reset_key}")
@@ -1866,7 +1893,15 @@ with admin_tabs[1]:
 
 # TAB 3: EDIT EXISTING PROJECTS
 with admin_tabs[2]:
-    st.markdown("### ✏️ Edit Existing Projects")
+    t_head, t_close = st.columns([15, 1])
+    with t_head:
+        st.markdown("### ✏️ Edit Existing Projects")
+    with t_close:
+        st.markdown('<div class="close-btn">', unsafe_allow_html=True)
+        if st.button("❌", key="close_admin_edit", help="Close Admin Panel", use_container_width=True):
+            st.session_state.admin_panel_open = False
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
     df_live = load_csv_safe('projects.csv')
     if df_live.empty:
         st.info("No projects available to edit.")
@@ -2010,7 +2045,15 @@ with admin_tabs[2]:
 
 # TAB 4: ACTIVITY LOGBOOK
 with admin_tabs[3]:
-    st.markdown("### 📊 User Activity Logbook")
+    t_head, t_close = st.columns([15, 1])
+    with t_head:
+        st.markdown("### 📊 User Activity Logbook")
+    with t_close:
+        st.markdown('<div class="close-btn">', unsafe_allow_html=True)
+        if st.button("❌", key="close_admin_logbook", help="Close Admin Panel", use_container_width=True):
+            st.session_state.admin_panel_open = False
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
     st.write("Track portal authentication, votes, database changes, and IP addresses.")
     
     log_file = "login_logbook.csv"
@@ -2065,7 +2108,15 @@ with admin_tabs[3]:
 
 # TAB 5: BACKUPS & CSV OPERATIONS
 with admin_tabs[4]:
-    st.markdown("### 💾 Database Backup & Import Tools")
+    t_head, t_close = st.columns([15, 1])
+    with t_head:
+        st.markdown("### 💾 Database Backup & Import Tools")
+    with t_close:
+        st.markdown('<div class="close-btn">', unsafe_allow_html=True)
+        if st.button("❌", key="close_admin_backups", help="Close Admin Panel", use_container_width=True):
+            st.session_state.admin_panel_open = False
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
     st.write("Access is restricted to authorized administrative personnel.")
     
     passcode_backup = st.text_input("Enter Passcode to Access Backup & Import Tools", type="password", key="backup_view_passcode")
@@ -2143,7 +2194,15 @@ with admin_tabs[4]:
 
 # TAB 6: USER FEEDBACK
 with admin_tabs[5]:
-    st.markdown("### 💬 User Feedback Directory")
+    t_head, t_close = st.columns([15, 1])
+    with t_head:
+        st.markdown("### 💬 User Feedback Directory")
+    with t_close:
+        st.markdown('<div class="close-btn">', unsafe_allow_html=True)
+        if st.button("❌", key="close_admin_feedback", help="Close Admin Panel", use_container_width=True):
+            st.session_state.admin_panel_open = False
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
     st.write("Access is restricted to authorized administrative personnel.")
     
     passcode = st.text_input("Enter Passcode to Access Feedbacks", type="password", key="feedback_view_passcode")
