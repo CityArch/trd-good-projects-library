@@ -1143,6 +1143,17 @@ if search_mode == "Single-Action Search":
         else:
             st.session_state.multi_iterations[0]["l2"] = "--"
             st.session_state.multi_iterations[0]["l3"] = "--"
+            
+        st.markdown("<br>", unsafe_allow_html=True)
+        reset_col, _ = st.columns([0.25, 0.75])
+        with reset_col:
+            if st.button("🔄 Reset Filtering", key="workspace_reset_btn_single", use_container_width=True):
+                st.session_state.search_reset_key += 1
+                st.session_state.multi_iterations = [{"l1": "--", "l2": "--", "l3": "--"}]
+                st.session_state.search_l1_list = []
+                st.session_state.search_filter_locked = False
+                st.session_state.search_clicked = False
+                st.rerun()
 
 else:
     # Multi-Action Search mode using Nominate-style selection logic
