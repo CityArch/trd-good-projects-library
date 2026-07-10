@@ -2171,57 +2171,65 @@ with admin_tabs[3]:
             st.session_state.admin_panel_open = False
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
-    st.write("Track portal authentication, votes, database changes, and IP addresses.")
+    st.write("Access is restricted to authorized administrative personnel.")
     
-    log_file = "login_logbook.csv"
-    if os.path.exists(log_file):
-        try:
-            log_df = pd.read_csv(log_file, encoding='utf-8')
-            if not log_df.empty:
-                # Sort by Timestamp descending so latest logs are at the top
-                log_df = log_df.sort_values(by="Timestamp", ascending=False)
-                
-                # Filters
-                col1, col2 = st.columns(2)
-                with col1:
-                    filter_user = st.selectbox("Filter by User", ["All"] + list(log_df["User"].unique()))
-                with col2:
-                    filter_event = st.selectbox("Filter by Event Type", ["All"] + list(log_df["Event"].unique()))
-                
-                filtered_log_df = log_df.copy()
-                if filter_user != "All":
-                    filtered_log_df = filtered_log_df[filtered_log_df["User"] == filter_user]
-                if filter_event != "All":
-                    filtered_log_df = filtered_log_df[filtered_log_df["Event"] == filter_event]
-                
-                st.dataframe(filtered_log_df, use_container_width=True, hide_index=True)
-                
-                col_actions1, col_actions2 = st.columns([4, 1])
-                with col_actions1:
-                    log_csv = log_df.to_csv(index=False, encoding='utf-8-sig')
-                    st.download_button(
-                        label="📥 Download Full Logbook (CSV)",
-                        data=log_csv,
-                        file_name="login_logbook.csv",
-                        mime="text/csv",
-                        use_container_width=True,
-                        on_click=log_event,
-                        args=(st.session_state.logged_in_user, "Backup Export", "Downloaded login_logbook.csv")
-                    )
-                with col_actions2:
-                    if st.button("🧹 Clear Logs", type="primary", use_container_width=True, help="Clear all entries in the logbook"):
-                        with open(log_file, "w", newline="", encoding="utf-8") as f:
-                            writer = csv.writer(f)
-                            writer.writerow(["Timestamp", "User", "IP Address", "Event", "Details"])
-                        log_event(st.session_state.logged_in_user, "Clear Logs", "Logbook was cleared by user")
-                        st.success("Logbook cleared!")
-                        st.rerun()
-            else:
-                st.info("Logbook is empty.")
-        except Exception as e:
-            st.error(f"Error loading logbook: {e}")
-    else:
-        st.info("No logs recorded yet.")
+    passcode_logbook = st.text_input("Enter Passcode to Access Activity Logbook", type="password", key="logbook_view_passcode")
+    if passcode_logbook == "1111":
+        st.success("Access Granted.")
+        
+        st.write("Track portal authentication, votes, database changes, and IP addresses.")
+        
+        log_file = "login_logbook.csv"
+        if os.path.exists(log_file):
+            try:
+                log_df = pd.read_csv(log_file, encoding='utf-8')
+                if not log_df.empty:
+                    # Sort by Timestamp descending so latest logs are at the top
+                    log_df = log_df.sort_values(by="Timestamp", ascending=False)
+                    
+                    # Filters
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        filter_user = st.selectbox("Filter by User", ["All"] + list(log_df["User"].unique()))
+                    with col2:
+                        filter_event = st.selectbox("Filter by Event Type", ["All"] + list(log_df["Event"].unique()))
+                    
+                    filtered_log_df = log_df.copy()
+                    if filter_user != "All":
+                        filtered_log_df = filtered_log_df[filtered_log_df["User"] == filter_user]
+                    if filter_event != "All":
+                        filtered_log_df = filtered_log_df[filtered_log_df["Event"] == filter_event]
+                    
+                    st.dataframe(filtered_log_df, use_container_width=True, hide_index=True)
+                    
+                    col_actions1, col_actions2 = st.columns([4, 1])
+                    with col_actions1:
+                        log_csv = log_df.to_csv(index=False, encoding='utf-8-sig')
+                        st.download_button(
+                            label="📥 Download Full Logbook (CSV)",
+                            data=log_csv,
+                            file_name="login_logbook.csv",
+                            mime="text/csv",
+                            use_container_width=True,
+                            on_click=log_event,
+                            args=(st.session_state.logged_in_user, "Backup Export", "Downloaded login_logbook.csv")
+                        )
+                    with col_actions2:
+                        if st.button("🧹 Clear Logs", type="primary", use_container_width=True, help="Clear all entries in the logbook"):
+                            with open(log_file, "w", newline="", encoding="utf-8") as f:
+                                writer = csv.writer(f)
+                                writer.writerow(["Timestamp", "User", "IP Address", "Event", "Details"])
+                            log_event(st.session_state.logged_in_user, "Clear Logs", "Logbook was cleared by user")
+                            st.success("Logbook cleared!")
+                            st.rerun()
+                else:
+                    st.info("Logbook is empty.")
+            except Exception as e:
+                st.error(f"Error loading logbook: {e}")
+        else:
+            st.info("No logs recorded yet.")
+    elif passcode_logbook:
+        st.error("Incorrect Passcode.")
 
 # TAB 5: BACKUPS & CSV OPERATIONS
 with admin_tabs[4]:
