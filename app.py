@@ -1707,9 +1707,9 @@ if "admin_panel_open" not in st.session_state:
 
 if not st.session_state.admin_panel_open:
     st.divider()
-    col_open_admin, _ = st.columns([0.25, 0.75])
-    with col_open_admin:
-        if st.button("🔑 Open Admin Control Center", key="open_admin_panel_btn", use_container_width=True):
+    col_l, col_c, col_r = st.columns([1, 2, 1])
+    with col_c:
+        if st.button("🔑 Administrative Control Center", key="open_admin_panel_btn", use_container_width=True):
             st.session_state.admin_panel_open = True
             st.rerun()
     st.stop()
