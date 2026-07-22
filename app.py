@@ -1522,6 +1522,20 @@ ID: {p_id} &nbsp;|&nbsp; Year: {cert_yr}
 <div style="font-family: 'Fira Code', 'Roboto Mono', monospace; font-size: 0.8rem; color: #94A3B8; margin-bottom: 6px;">
 <strong>ZR Section:</strong> {zr_val}
 </div>"""
+
+                pre_cho_val = str(r1.get('Pre-CHO ZR Section', '')).strip()
+                post_cho_val = str(r1.get('Post-CHO ZR Section', '')).strip()
+                if pre_cho_val and pre_cho_val.lower() not in ["", "nan", "none"]:
+                    card_html += f"""
+<div style="font-family: 'Fira Code', 'Roboto Mono', monospace; font-size: 0.8rem; color: #94A3B8; margin-bottom: 6px;">
+<strong>Pre-CHO ZR Section:</strong> {pre_cho_val}
+</div>"""
+                if post_cho_val and post_cho_val.lower() not in ["", "nan", "none"]:
+                    card_html += f"""
+<div style="font-family: 'Fira Code', 'Roboto Mono', monospace; font-size: 0.8rem; color: #94A3B8; margin-bottom: 6px;">
+<strong>Post-CHO ZR Section:</strong> {post_cho_val}
+</div>"""
+
                 if sample_val:
                     card_html += f"""
 <div style="font-family: 'Fira Code', 'Roboto Mono', monospace; font-size: 0.8rem; color: #94A3B8; margin-bottom: 12px;">
@@ -1657,6 +1671,20 @@ ID: {p_id} &nbsp;|&nbsp; Year: {cert_yr}
 <div style="font-family: 'Fira Code', 'Roboto Mono', monospace; font-size: 0.8rem; color: #94A3B8; margin-bottom: 6px;">
 <strong>ZR Section:</strong> {zr_val}
 </div>"""
+
+            pre_cho_val = str(r1.get('Pre-CHO ZR Section', '')).strip()
+            post_cho_val = str(r1.get('Post-CHO ZR Section', '')).strip()
+            if pre_cho_val and pre_cho_val.lower() not in ["", "nan", "none"]:
+                card_html += f"""
+<div style="font-family: 'Fira Code', 'Roboto Mono', monospace; font-size: 0.8rem; color: #94A3B8; margin-bottom: 6px;">
+<strong>Pre-CHO ZR Section:</strong> {pre_cho_val}
+</div>"""
+            if post_cho_val and post_cho_val.lower() not in ["", "nan", "none"]:
+                card_html += f"""
+<div style="font-family: 'Fira Code', 'Roboto Mono', monospace; font-size: 0.8rem; color: #94A3B8; margin-bottom: 6px;">
+<strong>Post-CHO ZR Section:</strong> {post_cho_val}
+</div>"""
+
             if sample_val:
                 card_html += f"""
 <div style="font-family: 'Fira Code', 'Roboto Mono', monospace; font-size: 0.8rem; color: #94A3B8; margin-bottom: 12px;">
@@ -1760,6 +1788,14 @@ with admin_tabs[0]:
                 sample_val = str(row.get('Sample Categories', '')).strip()
                 if zr_val and zr_val.lower() not in ["", "nan", "none"]:
                     st.markdown(f"**ZR Section:** `{zr_val}`")
+                
+                pre_cho_val = str(row.get('Pre-CHO ZR Section', '')).strip()
+                post_cho_val = str(row.get('Post-CHO ZR Section', '')).strip()
+                if pre_cho_val and pre_cho_val.lower() not in ["", "nan", "none"]:
+                    st.markdown(f"**Pre-CHO ZR Section:** `{pre_cho_val}`")
+                if post_cho_val and post_cho_val.lower() not in ["", "nan", "none"]:
+                    st.markdown(f"**Post-CHO ZR Section:** `{post_cho_val}`")
+                    
                 if sample_val and sample_val.lower() not in ["", "nan", "none"]:
                     st.markdown(f"**Sample Categories:** `{sample_val}`")
                     
@@ -1816,6 +1852,14 @@ with admin_tabs[0]:
                     sample_val = str(row.get('Sample Categories', '')).strip()
                     if zr_val and zr_val.lower() not in ["", "nan", "none"]:
                         st.markdown(f"**ZR Section:** `{zr_val}`")
+                    
+                    pre_cho_val = str(row.get('Pre-CHO ZR Section', '')).strip()
+                    post_cho_val = str(row.get('Post-CHO ZR Section', '')).strip()
+                    if pre_cho_val and pre_cho_val.lower() not in ["", "nan", "none"]:
+                        st.markdown(f"**Pre-CHO ZR Section:** `{pre_cho_val}`")
+                    if post_cho_val and post_cho_val.lower() not in ["", "nan", "none"]:
+                        st.markdown(f"**Post-CHO ZR Section:** `{post_cho_val}`")
+                        
                     if sample_val and sample_val.lower() not in ["", "nan", "none"]:
                         st.markdown(f"**Sample Categories:** `{sample_val}`")
                         
@@ -1839,7 +1883,9 @@ with admin_tabs[0]:
                                 'Project Desc.': row.get('Project Desc.', ''),
                                 'ZR Section': row.get('ZR Section', row.get('ZR Sections', '')),
                                 'Sample Categories': row.get('Sample Categories', ''),
-                                'Remarks': row['Remarks']
+                                'Remarks': row['Remarks'],
+                                'Pre-CHO ZR Section': row.get('Pre-CHO ZR Section', ''),
+                                'Post-CHO ZR Section': row.get('Post-CHO ZR Section', '')
                             }
                             save_row('projects.csv', new_proj_row)
                             q_df_live = load_csv_safe('review_queue.csv')
@@ -1872,6 +1918,16 @@ with admin_tabs[1]:
     add_id = st.text_input("Project ID / ULURP Number *", placeholder="e.g., N210045ZRK", key=f"add_id_{st.session_state.nominate_reset_key}")
     add_year = st.text_input("Certification Year (Cert Year)", placeholder="e.g., 2024 or 21-Sep", key=f"add_year_{st.session_state.nominate_reset_key}")
     add_desc = st.text_area("Project Description (Project Desc.)", placeholder="Enter brief overview of the project actions and waivers...", key=f"add_desc_{st.session_state.nominate_reset_key}")
+    
+    cho_era = st.radio("Is this project from Pre-CHO or Post-CHO era?", ["No", "Yes"], index=0, horizontal=True, key=f"cho_era_{st.session_state.nominate_reset_key}")
+    pre_cho_zr = ""
+    post_cho_zr = ""
+    if cho_era == "Yes":
+        col_cho1, col_cho2 = st.columns(2)
+        with col_cho1:
+            pre_cho_zr = st.text_input("Pre-CHO ZR Section", placeholder="e.g., 12-10", key=f"pre_cho_zr_{st.session_state.nominate_reset_key}")
+        with col_cho2:
+            post_cho_zr = st.text_input("Post-CHO ZR Section", placeholder="e.g., 13-10", key=f"post_cho_zr_{st.session_state.nominate_reset_key}")
     
     col_inputs1, col_inputs2 = st.columns(2)
     with col_inputs1:
@@ -1992,6 +2048,8 @@ with admin_tabs[1]:
                         'ZR Section': add_zr,
                         'Sample Categories': add_sample,
                         'Remarks': add_remarks,
+                        'Pre-CHO ZR Section': pre_cho_zr,
+                        'Post-CHO ZR Section': post_cho_zr,
                         'Status': 'Pending',
                         'Nominator': st.session_state.logged_in_user
                     }
@@ -2043,6 +2101,21 @@ with admin_tabs[2]:
             
             st.markdown("##### 🌐 Global Project Info")
             edit_desc = st.text_area("Project Description (Project Desc.)", value=proj_rows.iloc[0].get('Project Desc.', ''), key="edit_desc")
+            
+            exist_pre_cho = str(proj_rows.iloc[0].get('Pre-CHO ZR Section', '')).strip()
+            exist_post_cho = str(proj_rows.iloc[0].get('Post-CHO ZR Section', '')).strip()
+            has_cho_era = "Yes" if (exist_pre_cho or exist_post_cho) else "No"
+            
+            edit_cho_era = st.radio("Is this project from Pre-CHO or Post-CHO era?", ["No", "Yes"], index=["No", "Yes"].index(has_cho_era), horizontal=True, key="edit_cho_era")
+            edit_pre_cho_zr = ""
+            edit_post_cho_zr = ""
+            if edit_cho_era == "Yes":
+                col_edit_cho1, col_edit_cho2 = st.columns(2)
+                with col_edit_cho1:
+                    edit_pre_cho_zr = st.text_input("Pre-CHO ZR Section", value=exist_pre_cho, key="edit_pre_cho_zr")
+                with col_edit_cho2:
+                    edit_post_cho_zr = st.text_input("Post-CHO ZR Section", value=exist_post_cho, key="edit_post_cho_zr")
+            
             glob_col1, glob_col2 = st.columns(2)
             with glob_col1:
                 edit_name = st.text_input("Project Name", value=proj_rows.iloc[0]['Project'], key="edit_name")
@@ -2108,9 +2181,12 @@ with admin_tabs[2]:
                             'Cert Year': edit_year,
                             'Approval Pack/NOC': edit_link,
                             'Project Desc.': edit_desc,
+                            'ZR Section': edit_zr,
                             'ZR Sections': edit_zr,
                             'Sample Categories': edit_sample,
-                            'Remarks': row_remarks
+                            'Remarks': row_remarks,
+                            'Pre-CHO ZR Section': edit_pre_cho_zr,
+                            'Post-CHO ZR Section': edit_post_cho_zr
                         }
                     })
             
@@ -2127,8 +2203,9 @@ with admin_tabs[2]:
                     # Clean up df_live column names to match the exact schema
                     cols_to_save = [
                         'Project', 'Project ID', 'Approval Pack/NOC', 'Project Desc.', 
-                        'ZR Sections', 'Sample Categories', 'Remarks', 'Cert Year', 
-                        'Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'
+                        'ZR Section', 'ZR Sections', 'Sample Categories', 'Remarks', 'Cert Year', 
+                        'Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4',
+                        'Pre-CHO ZR Section', 'Post-CHO ZR Section'
                     ]
                     # Ensure df_live columns have these, or fill with empty
                     for col in cols_to_save:
@@ -2151,9 +2228,12 @@ with admin_tabs[2]:
                         'Cert Year': edit_year,
                         'Approval Pack/NOC': edit_link,
                         'Project Desc.': edit_desc,
+                        'ZR Section': edit_zr,
                         'ZR Sections': edit_zr,
                         'Sample Categories': edit_sample,
-                        'Remarks': ''
+                        'Remarks': '',
+                        'Pre-CHO ZR Section': edit_pre_cho_zr,
+                        'Post-CHO ZR Section': edit_post_cho_zr
                     }
                     save_row('projects.csv', new_row)
                     log_event(st.session_state.logged_in_user, "Add Project Path", f"Added new classification path to project '{edit_name}' (ID: {sel_proj_id})")
