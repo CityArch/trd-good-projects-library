@@ -2236,7 +2236,29 @@ with admin_tabs[2]:
                     st.session_state.edit_reset_key += 1
                     st.rerun()
             with act_col2:
-                if st.button("➕ ADD NEW PATH TO PROJECT", use_container_width=True):
+                has_undoable_path = not proj_rows[proj_rows['Level2'] == '--'].empty
+                add_path_clicked = False
+                
+                if has_undoable_path:
+                    btn_col_add, btn_col_back = st.columns(2)
+                    with btn_col_add:
+                        add_path_clicked = st.button("➕ ADD NEW PATH TO PROJECT", use_container_width=True)
+                    with btn_col_back:
+                        if st.button("↩️ Go Back", use_container_width=True, help="Undo adding the new path"):
+                            undo_rows = proj_rows[proj_rows['Level2'] == '--']
+                            if not undo_rows.empty:
+                                idx_to_drop = undo_rows.index[-1]  # Drop the latest added empty path row
+                                df_live_undo = load_csv_safe('projects.csv')
+                                if idx_to_drop in df_live_undo.index:
+                                    df_live_undo = df_live_undo.drop(idx_to_drop)
+                                    df_live_undo.to_csv('projects.csv', index=False, encoding='utf-8-sig')
+                                    log_event(st.session_state.logged_in_user, "Undo Add Path", f"Undid adding path for project '{edit_name}'")
+                                    st.success("Undid path addition!")
+                                    st.rerun()
+                else:
+                    add_path_clicked = st.button("➕ ADD NEW PATH TO PROJECT", use_container_width=True)
+                    
+                if add_path_clicked:
                     new_row = {
                         'Level1': list(TREE_DATA.keys())[0],
                         'Level2': '--',
