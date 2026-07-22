@@ -1919,21 +1919,28 @@ with admin_tabs[1]:
     add_year = st.text_input("Certification Year (Cert Year)", placeholder="e.g., 2024 or 21-Sep", key=f"add_year_{st.session_state.nominate_reset_key}")
     add_desc = st.text_area("Project Description (Project Desc.)", placeholder="Enter brief overview of the project actions and waivers...", key=f"add_desc_{st.session_state.nominate_reset_key}")
     
-    cho_era = st.radio("Is this project from Pre-CHO or Post-CHO era?", ["No", "Yes"], index=0, horizontal=True, key=f"cho_era_{st.session_state.nominate_reset_key}")
+    cho_era = st.radio("Is this project from Pre-CHO or Post-CHO era?", ["Pre-CHO", "Post-CHO"], index=0, horizontal=True, key=f"cho_era_{st.session_state.nominate_reset_key}")
+    
+    add_zr = ""
     pre_cho_zr = ""
     post_cho_zr = ""
-    if cho_era == "Yes":
+    
+    if cho_era == "Post-CHO":
         col_cho1, col_cho2 = st.columns(2)
         with col_cho1:
             pre_cho_zr = st.text_input("Pre-CHO ZR Section", placeholder="e.g., 12-10", key=f"pre_cho_zr_{st.session_state.nominate_reset_key}")
         with col_cho2:
             post_cho_zr = st.text_input("Post-CHO ZR Section", placeholder="e.g., 13-10", key=f"post_cho_zr_{st.session_state.nominate_reset_key}")
-    
-    col_inputs1, col_inputs2 = st.columns(2)
-    with col_inputs1:
-        add_zr = st.text_input("ZR Section", placeholder="e.g., 74-48, 33-432", key=f"add_zr_{st.session_state.nominate_reset_key}")
-    with col_inputs2:
+        
+        # Post-CHO: only show Sample Categories on a separate line
         add_sample = st.text_input("Sample Categories", placeholder="e.g., Sky Exposure Plane", key=f"add_sample_{st.session_state.nominate_reset_key}")
+    else:
+        # Pre-CHO: only show ZR Section and Sample Categories side by side
+        col_inputs1, col_inputs2 = st.columns(2)
+        with col_inputs1:
+            add_zr = st.text_input("ZR Section", placeholder="e.g., 74-48, 33-432", key=f"add_zr_{st.session_state.nominate_reset_key}")
+        with col_inputs2:
+            add_sample = st.text_input("Sample Categories", placeholder="e.g., Sky Exposure Plane", key=f"add_sample_{st.session_state.nominate_reset_key}")
         
     # 🌳 Learn L1-L2-L3 Category Tree Structure
     st.markdown('<div class="tree-buttons-marker"></div>', unsafe_allow_html=True)
@@ -2104,26 +2111,37 @@ with admin_tabs[2]:
             
             exist_pre_cho = str(proj_rows.iloc[0].get('Pre-CHO ZR Section', '')).strip()
             exist_post_cho = str(proj_rows.iloc[0].get('Post-CHO ZR Section', '')).strip()
-            has_cho_era = "Yes" if (exist_pre_cho or exist_post_cho) else "No"
+            has_cho_era = "Post-CHO" if (exist_pre_cho or exist_post_cho) else "Pre-CHO"
             
-            edit_cho_era = st.radio("Is this project from Pre-CHO or Post-CHO era?", ["No", "Yes"], index=["No", "Yes"].index(has_cho_era), horizontal=True, key="edit_cho_era")
+            edit_cho_era = st.radio("Is this project from Pre-CHO or Post-CHO era?", ["Pre-CHO", "Post-CHO"], index=["Pre-CHO", "Post-CHO"].index(has_cho_era), horizontal=True, key="edit_cho_era")
+            
+            edit_zr = ""
             edit_pre_cho_zr = ""
             edit_post_cho_zr = ""
-            if edit_cho_era == "Yes":
+            
+            if edit_cho_era == "Post-CHO":
                 col_edit_cho1, col_edit_cho2 = st.columns(2)
                 with col_edit_cho1:
                     edit_pre_cho_zr = st.text_input("Pre-CHO ZR Section", value=exist_pre_cho, key="edit_pre_cho_zr")
                 with col_edit_cho2:
                     edit_post_cho_zr = st.text_input("Post-CHO ZR Section", value=exist_post_cho, key="edit_post_cho_zr")
-            
-            glob_col1, glob_col2 = st.columns(2)
-            with glob_col1:
-                edit_name = st.text_input("Project Name", value=proj_rows.iloc[0]['Project'], key="edit_name")
-                edit_year = st.text_input("Cert Year", value=proj_rows.iloc[0].get('Cert Year', proj_rows.iloc[0].get('Cert Date', '')), key="edit_year")
-                edit_zr = st.text_input("ZR Section", value=proj_rows.iloc[0].get('ZR Section', proj_rows.iloc[0].get('ZR Sections', '')), key="edit_zr")
-            with glob_col2:
-                edit_link = st.text_input("Approval Pack / NOC URL", value=proj_rows.iloc[0].get('Approval Pack/NOC', ''), key="edit_link")
-                edit_sample = st.text_input("Sample Categories", value=proj_rows.iloc[0].get('Sample Categories', ''), key="edit_sample")
+                
+                glob_col1, glob_col2 = st.columns(2)
+                with glob_col1:
+                    edit_name = st.text_input("Project Name", value=proj_rows.iloc[0]['Project'], key="edit_name")
+                    edit_year = st.text_input("Cert Year", value=proj_rows.iloc[0].get('Cert Year', proj_rows.iloc[0].get('Cert Date', '')), key="edit_year")
+                with glob_col2:
+                    edit_link = st.text_input("Approval Pack / NOC URL", value=proj_rows.iloc[0].get('Approval Pack/NOC', ''), key="edit_link")
+                    edit_sample = st.text_input("Sample Categories", value=proj_rows.iloc[0].get('Sample Categories', ''), key="edit_sample")
+            else:
+                glob_col1, glob_col2 = st.columns(2)
+                with glob_col1:
+                    edit_name = st.text_input("Project Name", value=proj_rows.iloc[0]['Project'], key="edit_name")
+                    edit_year = st.text_input("Cert Year", value=proj_rows.iloc[0].get('Cert Year', proj_rows.iloc[0].get('Cert Date', '')), key="edit_year")
+                    edit_zr = st.text_input("ZR Section", value=proj_rows.iloc[0].get('ZR Section', proj_rows.iloc[0].get('ZR Sections', '')), key="edit_zr")
+                with glob_col2:
+                    edit_link = st.text_input("Approval Pack / NOC URL", value=proj_rows.iloc[0].get('Approval Pack/NOC', ''), key="edit_link")
+                    edit_sample = st.text_input("Sample Categories", value=proj_rows.iloc[0].get('Sample Categories', ''), key="edit_sample")
                 
             st.markdown("##### 🌳 Classification Paths (Rows)")
             st.info("A project can have multiple classification paths. You can edit each path individually below.")
