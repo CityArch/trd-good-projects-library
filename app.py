@@ -677,26 +677,26 @@ st.markdown(f"""
         color: white !important;
     }}
     /* Tree layout styling to make columns touch and align */
-    div:has(div.tree-wrapper-marker) ~ div[data-testid="stHorizontalBlock"] {
+    div:has(div.tree-wrapper-marker) ~ div[data-testid="stHorizontalBlock"] {{
         gap: 0px !important;
         align-items: center !important;
         margin-top: 0px !important;
         margin-bottom: 0px !important;
-    }
+    }}
     
-    div:has(div.tree-wrapper-marker) ~ div[data-testid="stHorizontalBlock"] div[data-testid="column"] {
+    div:has(div.tree-wrapper-marker) ~ div[data-testid="stHorizontalBlock"] div[data-testid="column"] {{
         padding: 0 !important;
         margin: 0 !important;
         width: auto !important;
         flex: none !important;
-    }
+    }}
     
-    div:has(div.tree-wrapper-marker) ~ div[data-testid="stHorizontalBlock"] div[data-testid="column"]:first-child {
+    div:has(div.tree-wrapper-marker) ~ div[data-testid="stHorizontalBlock"] div[data-testid="column"]:first-child {{
         margin-right: 0px !important;
-    }
+    }}
     
     /* Tree Clickable Link Styles */
-    div:has(div.tree-wrapper-marker) ~ div[data-testid="stHorizontalBlock"] div.stButton button {
+    div:has(div.tree-wrapper-marker) ~ div[data-testid="stHorizontalBlock"] div.stButton button {{
         background: none !important;
         border: none !important;
         color: #38BDF8 !important;
@@ -710,20 +710,20 @@ st.markdown(f"""
         font-size: 0.92rem !important;
         font-weight: 500 !important;
         box-shadow: none !important;
-    }
-    div:has(div.tree-wrapper-marker) ~ div[data-testid="stHorizontalBlock"] div.stButton button:hover {
+    }}
+    div:has(div.tree-wrapper-marker) ~ div[data-testid="stHorizontalBlock"] div.stButton button:hover {{
         color: #FFFFFF !important;
         background: none !important;
         text-decoration: underline !important;
-    }
+    }}
     
     /* Grayscale/dimmed style for projects in lists that don't match the highlighted category */
-    .glass-card-dimmed {
+    .glass-card-dimmed {{
         opacity: 0.25 !important;
         filter: grayscale(100%) !important;
         border: 1px solid rgba(255, 255, 255, 0.05) !important;
         transition: all 0.3s ease;
-    }
+    }}
     </style>
     """, unsafe_allow_html=True)
 
