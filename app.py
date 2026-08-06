@@ -1181,21 +1181,15 @@ if st.session_state.get("active_metric_view"):
                 
                 border_bottom = "border-bottom: 1px solid rgba(255, 255, 255, 0.08);" if idx < len(unique_project_ids) - 1 else ""
                 
-                item_html = f"""
-                <div style="padding: 12px 16px; {border_bottom} {dim_style} font-family: 'Inter', sans-serif; line-height: 1.4; transition: all 0.2s ease;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 4px;">
-                        <div style="font-size: 0.95rem; font-weight: 600; color: #FFFFFF;">
-                            <strong>Project:</strong> {p_name} {badge_html}
-                        </div>
-                        <div style="font-size: 0.85rem; color: #94A3B8; font-family: monospace;">
-                            ID: <code>{p_id}</code>
-                        </div>
-                    </div>
-                    <div style="font-size: 0.85rem; color: #E2E8F0; margin-top: 4px;">
-                        <strong>ZR Section:</strong> <code>{p_zr}</code> | <strong>Sample Category/Categories:</strong> <code>{p_sample}</code>
-                    </div>
-                </div>
-                """
+                item_html = (
+                    f'<div style="padding: 12px 16px; {border_bottom} {dim_style} font-family: \'Inter\', sans-serif; line-height: 1.4; transition: all 0.2s ease;">'
+                    f'<div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 4px;">'
+                    f'<div style="font-size: 0.95rem; font-weight: 600; color: #FFFFFF;"><strong>Project:</strong> {p_name} {badge_html}</div>'
+                    f'<div style="font-size: 0.85rem; color: #94A3B8; font-family: monospace;">ID: <code>{p_id}</code></div>'
+                    f'</div>'
+                    f'<div style="font-size: 0.85rem; color: #E2E8F0; margin-top: 4px;"><strong>ZR Section:</strong> <code>{p_zr}</code> | <strong>Sample Category/Categories:</strong> <code>{p_sample}</code></div>'
+                    f'</div>'
+                )
                 list_html += item_html
                 
             list_html += "</div>"
