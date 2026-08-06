@@ -1122,6 +1122,8 @@ if st.session_state.get("active_metric_view"):
         if not unique_project_ids:
             st.info("No projects found in this category.")
         else:
+            list_html = '<div style="display: flex; flex-direction: column; gap: 0px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(15, 23, 42, 0.35); overflow: hidden; margin-top: 10px;">'
+            
             for idx, p_id in enumerate(unique_project_ids):
                 # Retrieve the full set of rows for this project ID from the source dataframe
                 if view_name == "Pending Queue":
@@ -1163,7 +1165,7 @@ if st.session_state.get("active_metric_view"):
                     style = L1_STYLE.get(cat, {"color": "green", "hex": "#34D399", "emoji": "🟢", "name": cat})
                     badge_html += f'<span style="display: inline-block; background-color: {style["hex"]}; color: #0F172A; padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; margin-left: 6px; font-family: \'Outfit\';">{style["emoji"]} {style["name"].upper()}</span>'
                 
-                dim_class = ""
+                dim_style = ""
                 if highlight_cat:
                     is_match = False
                     for _, row in gp_proj.iterrows():
@@ -1175,20 +1177,29 @@ if st.session_state.get("active_metric_view"):
                                 is_match = True
                                 break
                     if not is_match:
-                        dim_class = "glass-card-dimmed"
+                        dim_style = "filter: grayscale(100%); opacity: 0.25;"
                 
-                card_html = f"""
-                <div class="glass-card {dim_class}" style="padding: 16px; margin-bottom: 12px; border: 1px solid rgba(255, 255, 255, 0.08);">
-                    <div style="margin-bottom: 6px; font-family: 'Inter', sans-serif;">
-                        <strong>Project:</strong> {p_name} {badge_html} | <strong>ID:</strong> <code>{p_id}</code>
+                border_bottom = "border-bottom: 1px solid rgba(255, 255, 255, 0.08);" if idx < len(unique_project_ids) - 1 else ""
+                
+                item_html = f"""
+                <div style="padding: 12px 16px; {border_bottom} {dim_style} font-family: 'Inter', sans-serif; line-height: 1.4; transition: all 0.2s ease;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 4px;">
+                        <div style="font-size: 0.95rem; font-weight: 600; color: #FFFFFF;">
+                            <strong>Project:</strong> {p_name} {badge_html}
+                        </div>
+                        <div style="font-size: 0.85rem; color: #94A3B8; font-family: monospace;">
+                            ID: <code>{p_id}</code>
+                        </div>
                     </div>
-                    <div style="font-size: 0.9rem; color: #E2E8F0; font-family: 'Inter', sans-serif; margin-top: 8px;">
-                        <strong>ZR Section:</strong> <code>{p_zr}</code> | 
-                        <strong>Sample Category/Categories:</strong> <code>{p_sample}</code>
+                    <div style="font-size: 0.85rem; color: #E2E8F0; margin-top: 4px;">
+                        <strong>ZR Section:</strong> <code>{p_zr}</code> | <strong>Sample Category/Categories:</strong> <code>{p_sample}</code>
                     </div>
                 </div>
                 """
-                st.markdown(card_html, unsafe_allow_html=True)
+                list_html += item_html
+                
+            list_html += "</div>"
+            st.markdown(list_html, unsafe_allow_html=True)
 
 # --- 1. SIDEBAR CONFIG ---
 if "logged_in_user" in st.session_state:
