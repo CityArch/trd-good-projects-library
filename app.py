@@ -677,7 +677,7 @@ st.markdown(f"""
         color: white !important;
     }}
     /* Tree Clickable Link Styles */
-    .tree-container div[data-testid="column"] div.stButton button {
+    .tree-container div[data-testid="column"] div.stButton button {{
         background: none !important;
         border: none !important;
         color: #38BDF8 !important;
@@ -691,20 +691,20 @@ st.markdown(f"""
         font-size: 0.95rem !important;
         font-weight: 500 !important;
         box-shadow: none !important;
-    }
-    .tree-container div[data-testid="column"] div.stButton button:hover {
+    }}
+    .tree-container div[data-testid="column"] div.stButton button:hover {{
         color: #FFFFFF !important;
         background: none !important;
         text-decoration: underline !important;
-    }
+    }}
     
     /* Grayscale/dimmed style for projects in lists that don't match the highlighted category */
-    .glass-card-dimmed {
+    .glass-card-dimmed {{
         opacity: 0.25 !important;
         filter: grayscale(100%) !important;
         border: 1px solid rgba(255, 255, 255, 0.05) !important;
         transition: all 0.3s ease;
-    }
+    }}
     </style>
     """, unsafe_allow_html=True)
 
