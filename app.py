@@ -676,7 +676,13 @@ st.markdown(f"""
     div[data-testid="stButton"]:has(a[href="https://dislike-btn"]) button[data-testid="baseButton-primary"] a {{
         color: white !important;
     }}
-    /* Tree layout styling to make columns touch and align */
+    div:has(div.tree-wrapper-marker) ~ div[data-testid="element-container"] {{
+        margin-top: 0px !important;
+        margin-bottom: 0px !important;
+        padding-top: 0px !important;
+        padding-bottom: 0px !important;
+    }}
+    
     div:has(div.tree-wrapper-marker) ~ div[data-testid="stHorizontalBlock"] {{
         gap: 0px !important;
         align-items: center !important;
