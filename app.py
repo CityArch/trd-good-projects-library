@@ -902,6 +902,43 @@ def load_csv_safe(file_path):
         
     return df.fillna("").map(lambda x: str(x).strip())
 
+def get_era_circles_html(row_data):
+    p_era = str(row_data.get('CHO_Era', '')).strip()
+    if not p_era:
+        exist_pre = str(row_data.get('Pre-CHO ZR Section', '')).strip()
+        exist_post = str(row_data.get('Post-CHO ZR Section', '')).strip()
+        if exist_pre or exist_post:
+            p_era = "Post-CHO"
+            
+    if p_era == "Pre-CHO":
+        pre_color = "#FF9F43"
+        pre_bg = "#FF9F43"
+        post_color = "#64748B"
+        post_bg = "#64748B"
+    elif p_era == "Post-CHO":
+        pre_color = "#64748B"
+        pre_bg = "#64748B"
+        post_color = "#FF9F43"
+        post_bg = "#FF9F43"
+    else:
+        pre_color = "#64748B"
+        pre_bg = "#64748B"
+        post_color = "#64748B"
+        post_bg = "#64748B"
+        
+    return (
+        f'<span style="display: inline-flex; align-items: center; gap: 8px; margin-left: 8px; vertical-align: middle;">'
+        f'<span style="display: inline-flex; align-items: center; font-size: 0.72rem; font-weight: 700; color: {pre_color};">'
+        f'<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: {pre_bg}; margin-right: 4px;"></span>'
+        f'Pre-CHO'
+        f'</span>'
+        f'<span style="display: inline-flex; align-items: center; font-size: 0.72rem; font-weight: 700; color: {post_color};">'
+        f'<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: {post_bg}; margin-right: 4px;"></span>'
+        f'Post-CHO'
+        f'</span>'
+        f'</span>'
+    )
+
 def save_row(file_path, data_dict):
     file_exists = os.path.isfile(file_path)
     if "review_queue" in file_path:
@@ -909,13 +946,15 @@ def save_row(file_path, data_dict):
             'Project', 'Project ID', 'Approval Pack/NOC', 'Project Desc.', 
             'ZR Section', 'Sample Categories', 'Remarks', 'Cert Year', 
             'Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4', 'Status',
-            'Vote_PM', 'Vote_TL', 'Vote_DD', 'Vote_D'
+            'Vote_PM', 'Vote_TL', 'Vote_DD', 'Vote_D',
+            'Pre-CHO ZR Section', 'Post-CHO ZR Section', 'CHO_Era'
         ]
     else:
         fieldnames = [
             'Project', 'Project ID', 'Approval Pack/NOC', 'Project Desc.', 
             'ZR Sections', 'Sample Categories', 'Remarks', 'Cert Year', 
-            'Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4'
+            'Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4',
+            'Pre-CHO ZR Section', 'Post-CHO ZR Section', 'CHO_Era'
         ]
         
     with open(file_path, mode='a', newline='', encoding='utf-8-sig') as f:
@@ -1221,7 +1260,7 @@ if st.session_state.get("active_metric_view"):
                 item_html = (
                     f'<div style="padding: 12px 16px; {border_bottom} {dim_style} font-family: \'Inter\', sans-serif; line-height: 1.4; transition: all 0.2s ease;">'
                     f'<div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 4px;">'
-                    f'<div style="font-size: 0.95rem; font-weight: 600; color: #FFFFFF;"><strong>Project:</strong> {p_name} {badge_html}</div>'
+                    f'<div style="font-size: 0.95rem; font-weight: 600; color: #FFFFFF;"><strong>Project:</strong> {p_name} {get_era_circles_html(r1)} {badge_html}</div>'
                     f'<div style="font-size: 0.85rem; color: #94A3B8; font-family: monospace;">ID: <code>{p_id}</code></div>'
                     f'</div>'
                     f'<div style="font-size: 0.85rem; color: #E2E8F0; margin-top: 4px;"><strong>ZR Section:</strong> <code>{p_zr}</code> | <strong>Sample Category/Categories:</strong> <code>{p_sample}</code></div>'
@@ -1617,11 +1656,12 @@ if q_search:
                 r1 = gp.iloc[0]
                 cert_yr = r1.get('Cert Year', r1.get('Cert Date', ''))
                 
-                # Show with a white bold frame around the box!
+                circles_val = get_era_circles_html(r1)
                 card_style = 'style="border: 3px solid #FFFFFF !important; box-shadow: 0 12px 40px rgba(255, 255, 255, 0.25) !important;"'
                 card_html = f"""<div class="glass-card" {card_style}>
 <div>
 <h3 style="margin: 0; font-size: 1.6rem; color: #FFFFFF; font-family: 'Inter', sans-serif; font-weight: 600; line-height: 1.25;">{r1['Project']}</h3>
+<div style="margin-top: 8px; margin-bottom: 4px;">{circles_val}</div>
 <div style="font-family: 'Fira Code', 'Roboto Mono', monospace; font-size: 0.85rem; color: #94A3B8; margin-top: 12px; margin-bottom: 12px; font-weight: 500;">
 ID: {p_id} &nbsp;|&nbsp; Year: {cert_yr}
 </div>"""
@@ -1767,10 +1807,12 @@ elif st.session_state.search_clicked:
                 if name_match or id_match:
                     is_highlighted = True
             
+            circles_val = get_era_circles_html(r1)
             card_style = 'style="border: 3px solid #FFFFFF !important; box-shadow: 0 12px 40px rgba(255, 255, 255, 0.25) !important;"' if is_highlighted else ""
             card_html = f"""<div class="glass-card" {card_style}>
 <div>
 <h3 style="margin: 0; font-size: 1.6rem; color: #FFFFFF; font-family: 'Inter', sans-serif; font-weight: 600; line-height: 1.25;">{r1['Project']}</h3>
+<div style="margin-top: 8px; margin-bottom: 4px;">{circles_val}</div>
 <div style="font-family: 'Fira Code', 'Roboto Mono', monospace; font-size: 0.85rem; color: #94A3B8; margin-top: 12px; margin-bottom: 12px; font-weight: 500;">
 ID: {p_id} &nbsp;|&nbsp; Year: {cert_yr}
 </div>"""
@@ -2020,7 +2062,8 @@ with admin_tabs[0]:
                                 'Sample Categories': row.get('Sample Categories', ''),
                                 'Remarks': row['Remarks'],
                                 'Pre-CHO ZR Section': row.get('Pre-CHO ZR Section', ''),
-                                'Post-CHO ZR Section': row.get('Post-CHO ZR Section', '')
+                                'Post-CHO ZR Section': row.get('Post-CHO ZR Section', ''),
+                                'CHO_Era': row.get('CHO_Era', '')
                             }
                             save_row('projects.csv', new_proj_row)
                             q_df_live = load_csv_safe('review_queue.csv')
@@ -2054,7 +2097,7 @@ with admin_tabs[1]:
     add_year = st.text_input("Certification Year (Cert Year)", placeholder="e.g., 2024 or 21-Sep", key=f"add_year_{st.session_state.nominate_reset_key}")
     add_desc = st.text_area("Project Description (Project Desc.)", placeholder="Enter brief overview of the project actions and waivers...", key=f"add_desc_{st.session_state.nominate_reset_key}")
     
-    cho_era = st.radio("Is this project from Pre-CHO or Post-CHO era?", ["Pre-CHO", "Post-CHO"], index=0, horizontal=True, key=f"cho_era_{st.session_state.nominate_reset_key}")
+    cho_era = st.radio("Is this project from Pre-CHO or Post-CHO era?", ["Not Specified", "Pre-CHO", "Post-CHO"], index=0, horizontal=True, key=f"cho_era_{st.session_state.nominate_reset_key}")
     
     add_zr = ""
     pre_cho_zr = ""
@@ -2070,7 +2113,7 @@ with admin_tabs[1]:
         # Post-CHO: only show Sample Categories on a separate line
         add_sample = st.text_input("Sample Categories", placeholder="e.g., Sky Exposure Plane", key=f"add_sample_{st.session_state.nominate_reset_key}")
     else:
-        # Pre-CHO: only show ZR Section and Sample Categories side by side
+        # Pre-CHO / Not Specified: only show ZR Section and Sample Categories side by side
         col_inputs1, col_inputs2 = st.columns(2)
         with col_inputs1:
             add_zr = st.text_input("ZR Section", placeholder="e.g., 74-48, 33-432", key=f"add_zr_{st.session_state.nominate_reset_key}")
@@ -2192,6 +2235,7 @@ with admin_tabs[1]:
                         'Remarks': add_remarks,
                         'Pre-CHO ZR Section': pre_cho_zr,
                         'Post-CHO ZR Section': post_cho_zr,
+                        'CHO_Era': cho_era,
                         'Status': 'Pending',
                         'Nominator': st.session_state.logged_in_user
                     }
@@ -2244,11 +2288,18 @@ with admin_tabs[2]:
             st.markdown("##### 🌐 Global Project Info")
             edit_desc = st.text_area("Project Description (Project Desc.)", value=proj_rows.iloc[0].get('Project Desc.', ''), key="edit_desc")
             
-            exist_pre_cho = str(proj_rows.iloc[0].get('Pre-CHO ZR Section', '')).strip()
-            exist_post_cho = str(proj_rows.iloc[0].get('Post-CHO ZR Section', '')).strip()
-            has_cho_era = "Post-CHO" if (exist_pre_cho or exist_post_cho) else "Pre-CHO"
+            exist_era = str(proj_rows.iloc[0].get('CHO_Era', '')).strip()
+            if exist_era in ["Pre-CHO", "Post-CHO"]:
+                has_cho_era = exist_era
+            else:
+                exist_pre_cho = str(proj_rows.iloc[0].get('Pre-CHO ZR Section', '')).strip()
+                exist_post_cho = str(proj_rows.iloc[0].get('Post-CHO ZR Section', '')).strip()
+                if exist_pre_cho or exist_post_cho:
+                    has_cho_era = "Post-CHO"
+                else:
+                    has_cho_era = "Not Specified"
             
-            edit_cho_era = st.radio("Is this project from Pre-CHO or Post-CHO era?", ["Pre-CHO", "Post-CHO"], index=["Pre-CHO", "Post-CHO"].index(has_cho_era), horizontal=True, key="edit_cho_era")
+            edit_cho_era = st.radio("Is this project from Pre-CHO or Post-CHO era?", ["Not Specified", "Pre-CHO", "Post-CHO"], index=["Not Specified", "Pre-CHO", "Post-CHO"].index(has_cho_era), horizontal=True, key="edit_cho_era")
             
             edit_zr = ""
             edit_pre_cho_zr = ""
@@ -2339,7 +2390,8 @@ with admin_tabs[2]:
                             'Sample Categories': edit_sample,
                             'Remarks': row_remarks,
                             'Pre-CHO ZR Section': edit_pre_cho_zr,
-                            'Post-CHO ZR Section': edit_post_cho_zr
+                            'Post-CHO ZR Section': edit_post_cho_zr,
+                            'CHO_Era': edit_cho_era
                         }
                     })
             
@@ -2358,7 +2410,7 @@ with admin_tabs[2]:
                         'Project', 'Project ID', 'Approval Pack/NOC', 'Project Desc.', 
                         'ZR Section', 'ZR Sections', 'Sample Categories', 'Remarks', 'Cert Year', 
                         'Level1', 'Level2', 'Level3-1', 'Level3-2', 'Level3-3', 'Level3-4',
-                        'Pre-CHO ZR Section', 'Post-CHO ZR Section'
+                        'Pre-CHO ZR Section', 'Post-CHO ZR Section', 'CHO_Era'
                     ]
                     # Ensure df_live columns have these, or fill with empty
                     for col in cols_to_save:
@@ -2408,7 +2460,8 @@ with admin_tabs[2]:
                         'Sample Categories': edit_sample,
                         'Remarks': '',
                         'Pre-CHO ZR Section': edit_pre_cho_zr,
-                        'Post-CHO ZR Section': edit_post_cho_zr
+                        'Post-CHO ZR Section': edit_post_cho_zr,
+                        'CHO_Era': edit_cho_era
                     }
                     save_row('projects.csv', new_row)
                     log_event(st.session_state.logged_in_user, "Add Project Path", f"Added new classification path to project '{edit_name}' (ID: {sel_proj_id})")
