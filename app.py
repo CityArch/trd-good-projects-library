@@ -751,7 +751,7 @@ def show_category_tree(l1_key, key_prefix):
     style = L1_STYLE.get(l1_key, {"color": "green", "hex": "#34D399", "emoji": "🟢", "name": l1_key})
     hex_color = style["hex"]
     
-    st.markdown('<div class="tree-container">', unsafe_allow_html=True)
+    tree_html = '<div style="font-family: \'Fira Code\', \'Roboto Mono\', monospace; font-size: 0.92rem; line-height: 1.6; padding-left: 10px;">'
     
     for i, l2 in enumerate(l2_keys):
         is_last_l2 = (i == len(l2_keys) - 1)
@@ -762,16 +762,13 @@ def show_category_tree(l1_key, key_prefix):
         if not df_raw.empty:
             has_l2_projs = not df_raw[df_raw['Level2'].str.strip().str.lower() == l2.strip().lower()].empty
             
-        c1, c2 = st.columns([1, 15])
-        with c1:
-            st.markdown(f"<span style='font-family: monospace; color: {hex_color}; font-weight: 700;'>{l2_prefix}</span>", unsafe_allow_html=True)
-        with c2:
-            if has_l2_projs:
-                if st.button(l2_display, key=f"tree_l2_{key_prefix}_{l1_key}_{l2}", use_container_width=False, help=f"Click to highlight {l2_display} projects"):
-                    trigger_category_click(l1_key, l2)
-            else:
-                st.markdown(f"<span style='color: #64748B; font-family: monospace; font-size: 0.95rem;'>{l2_display}</span>", unsafe_allow_html=True)
-                
+        if has_l2_projs:
+            import urllib.parse
+            q_val = urllib.parse.quote_plus(l2)
+            tree_html += f'<div style="margin: 2px 0;"><span style="color: {hex_color}; font-weight: 700;">{l2_prefix}</span><a href="?click_l1={l1_key}&click_val={q_val}" target="_self" style="color: #38BDF8; text-decoration: underline; font-weight: 500;">{l2_display}</a></div>'
+        else:
+            tree_html += f'<div style="margin: 2px 0;"><span style="color: #475569; font-weight: 700;">{l2_prefix}</span><span style="color: #64748B;">{l2_display}</span></div>'
+            
         l3_list = category_data.get(l2, [])
         if l3_list:
             l3_branch = "    " if is_last_l2 else "│   "
@@ -788,19 +785,15 @@ def show_category_tree(l1_key, key_prefix):
                         (df_raw['Level3-4'].str.strip().str.lower() == l3.strip().lower())
                     ].empty
                 
-                c3_1, c3_2, c3_3 = st.columns([1, 1, 14])
-                with c3_1:
-                    st.markdown(f"<span style='font-family: monospace; color: #475569; font-weight: 700;'>{l3_branch}</span>", unsafe_allow_html=True)
-                with c3_2:
-                    st.markdown(f"<span style='font-family: monospace; color: #475569; font-weight: 700;'>{l3_prefix}</span>", unsafe_allow_html=True)
-                with c3_3:
-                    if has_l3_projs:
-                        if st.button(l3, key=f"tree_l3_{key_prefix}_{l1_key}_{l2}_{l3}", use_container_width=False, help=f"Click to highlight {l3} projects"):
-                            trigger_category_click(l1_key, l3)
-                    else:
-                        st.markdown(f"<span style='color: #475569; font-family: monospace; font-size: 0.95rem;'>{l3}</span>", unsafe_allow_html=True)
-                        
-    st.markdown('</div>', unsafe_allow_html=True)
+                if has_l3_projs:
+                    import urllib.parse
+                    q_val = urllib.parse.quote_plus(l3)
+                    tree_html += f'<div style="margin: 2px 0;"><span style="color: #475569; font-weight: 700;">{l3_branch}{l3_prefix}</span><a href="?click_l1={l1_key}&click_val={q_val}" target="_self" style="color: #38BDF8; text-decoration: underline; font-weight: 500;">{l3}</a></div>'
+                else:
+                    tree_html += f'<div style="margin: 2px 0;"><span style="color: #475569; font-weight: 700;">{l3_branch}{l3_prefix}</span><span style="color: #475569;">{l3}</span></div>'
+                    
+    tree_html += '</div>'
+    st.markdown(tree_html, unsafe_allow_html=True)
 
 # --- TREE STRUCTURE DATA ---
 TREE_DATA = {
@@ -982,6 +975,24 @@ if "edit_reset_key" not in st.session_state: st.session_state.edit_reset_key = 0
 if "nominate_reset_key" not in st.session_state: st.session_state.nominate_reset_key = 0
 
 df_raw = load_csv_safe('projects.csv')
+
+# --- INTERCEPT CLICKED CATEGORY LINKS ---
+if "click_l1" in st.query_params and "click_val" in st.query_params:
+    l1_val = st.query_params["click_l1"]
+    val_val = st.query_params["click_val"]
+    
+    mapping = {
+        "Use_Waivers": "Use Waivers",
+        "Bulk_Waivers": "Bulk Waivers",
+        "Parking_Curbcuts": "Parking & Curbcuts",
+        "Open_Space": "Open Spaces",
+        "Miscellaneous": "Miscellaneous"
+    }
+    st.session_state.active_metric_view = mapping.get(l1_val, "Total Projects")
+    st.session_state.highlight_category = val_val
+    
+    st.query_params.clear()
+    st.rerun()
 
 
 
