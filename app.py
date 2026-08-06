@@ -850,7 +850,7 @@ if not st.session_state.password_correct:
 <p style="color: #94A3B8; margin-top: 5px; margin-bottom: 25px; font-size: 0.9rem;">Digital Database Portal</p>""", unsafe_allow_html=True)
     
     USERS = [
-        "Steven Lenards (D)",
+        "Steven Lenard (D)",
         "Kenny Ramnarine (DD)",
         "Abraham Abreu (CM-TL)",
         "Joenette Cobb (CM-S)",
