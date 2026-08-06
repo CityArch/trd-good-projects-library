@@ -676,6 +676,35 @@ st.markdown(f"""
     div[data-testid="stButton"]:has(a[href="https://dislike-btn"]) button[data-testid="baseButton-primary"] a {{
         color: white !important;
     }}
+    /* Tree Clickable Link Styles */
+    .tree-container div[data-testid="column"] div.stButton button {
+        background: none !important;
+        border: none !important;
+        color: #38BDF8 !important;
+        text-decoration: underline !important;
+        text-align: left !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        height: auto !important;
+        min-height: unset !important;
+        font-family: 'Fira Code', 'Roboto Mono', monospace !important;
+        font-size: 0.95rem !important;
+        font-weight: 500 !important;
+        box-shadow: none !important;
+    }
+    .tree-container div[data-testid="column"] div.stButton button:hover {
+        color: #FFFFFF !important;
+        background: none !important;
+        text-decoration: underline !important;
+    }
+    
+    /* Grayscale/dimmed style for projects in lists that don't match the highlighted category */
+    .glass-card-dimmed {
+        opacity: 0.25 !important;
+        filter: grayscale(100%) !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        transition: all 0.3s ease;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -703,35 +732,75 @@ def format_l1(option):
     }
     return mapping.get(option, option)
 
-def render_category_tree(l1_key):
-    style = L1_STYLE.get(l1_key, {"color": "green", "hex": "#34D399", "emoji": "🟢", "name": l1_key})
-    emoji = style["emoji"]
-    name = style["name"]
-    hex_color = style["hex"]
-    
-    tree_html = f"""
-    <div style="font-family: 'Fira Code', 'Roboto Mono', monospace; font-size: 0.95rem; line-height: 1.7; color: #E2E8F0; white-space: pre-wrap; padding-left: 10px;">
-    """
-    
+def trigger_category_click(l1_key, category_name):
+    mapping = {
+        "Use_Waivers": "Use Waivers",
+        "Bulk_Waivers": "Bulk Waivers",
+        "Parking_Curbcuts": "Parking & Curbcuts",
+        "Open_Space": "Open Spaces",
+        "Miscellaneous": "Miscellaneous"
+    }
+    st.session_state.active_metric_view = mapping.get(l1_key, "Total Projects")
+    st.session_state.highlight_category = category_name
+    st.rerun()
+
+def show_category_tree(l1_key, key_prefix):
     category_data = TREE_DATA.get(l1_key, {})
     l2_keys = [k for k in category_data.keys() if k != "image_file"]
+    
+    style = L1_STYLE.get(l1_key, {"color": "green", "hex": "#34D399", "emoji": "🟢", "name": l1_key})
+    hex_color = style["hex"]
+    
+    st.markdown('<div class="tree-container">', unsafe_allow_html=True)
     
     for i, l2 in enumerate(l2_keys):
         is_last_l2 = (i == len(l2_keys) - 1)
         l2_prefix = "└── " if is_last_l2 else "├── "
         l2_display = l2.replace("_", " ")
-        tree_html += f'<div style="font-weight: 700; color: {hex_color}; margin-top: 5px;">{l2_prefix}{l2_display}</div>'
         
+        has_l2_projs = False
+        if not df_raw.empty:
+            has_l2_projs = not df_raw[df_raw['Level2'].str.strip().str.lower() == l2.strip().lower()].empty
+            
+        c1, c2 = st.columns([1, 15])
+        with c1:
+            st.markdown(f"<span style='font-family: monospace; color: {hex_color}; font-weight: 700;'>{l2_prefix}</span>", unsafe_allow_html=True)
+        with c2:
+            if has_l2_projs:
+                if st.button(l2_display, key=f"tree_l2_{key_prefix}_{l1_key}_{l2}", use_container_width=False, help=f"Click to highlight {l2_display} projects"):
+                    trigger_category_click(l1_key, l2)
+            else:
+                st.markdown(f"<span style='color: #64748B; font-family: monospace; font-size: 0.95rem;'>{l2_display}</span>", unsafe_allow_html=True)
+                
         l3_list = category_data.get(l2, [])
         if l3_list:
             l3_branch = "    " if is_last_l2 else "│   "
             for j, l3 in enumerate(l3_list):
                 is_last_l3 = (j == len(l3_list) - 1)
                 l3_prefix = "└── " if is_last_l3 else "├── "
-                tree_html += f'<div style="color: #94A3B8; padding-left: 20px;">{l3_branch}{l3_prefix}{l3}</div>'
                 
-    tree_html += "</div>"
-    return tree_html
+                has_l3_projs = False
+                if not df_raw.empty:
+                    has_l3_projs = not df_raw[
+                        (df_raw['Level3-1'].str.strip().str.lower() == l3.strip().lower()) |
+                        (df_raw['Level3-2'].str.strip().str.lower() == l3.strip().lower()) |
+                        (df_raw['Level3-3'].str.strip().str.lower() == l3.strip().lower()) |
+                        (df_raw['Level3-4'].str.strip().str.lower() == l3.strip().lower())
+                    ].empty
+                
+                c3_1, c3_2, c3_3 = st.columns([1, 1, 14])
+                with c3_1:
+                    st.markdown(f"<span style='font-family: monospace; color: #475569; font-weight: 700;'>{l3_branch}</span>", unsafe_allow_html=True)
+                with c3_2:
+                    st.markdown(f"<span style='font-family: monospace; color: #475569; font-weight: 700;'>{l3_prefix}</span>", unsafe_allow_html=True)
+                with c3_3:
+                    if has_l3_projs:
+                        if st.button(l3, key=f"tree_l3_{key_prefix}_{l1_key}_{l2}_{l3}", use_container_width=False, help=f"Click to highlight {l3} projects"):
+                            trigger_category_click(l1_key, l3)
+                    else:
+                        st.markdown(f"<span style='color: #475569; font-family: monospace; font-size: 0.95rem;'>{l3}</span>", unsafe_allow_html=True)
+                        
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- TREE STRUCTURE DATA ---
 TREE_DATA = {
@@ -1036,8 +1105,19 @@ if st.session_state.get("active_metric_view"):
             st.markdown('<div class="close-btn">', unsafe_allow_html=True)
             if st.button("❌", key="close_metric_view", help="Close list", use_container_width=True):
                 st.session_state.active_metric_view = None
+                st.session_state.highlight_category = None
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
+            
+        highlight_cat = st.session_state.get("highlight_category")
+        if highlight_cat:
+            c_info, c_clear = st.columns([4, 1])
+            with c_info:
+                st.info(f"🔍 Highlighting projects with action: **{highlight_cat}** (other projects visually dimmed)")
+            with c_clear:
+                if st.button("Clear Highlight", key="clear_highlight_filter_btn", use_container_width=True):
+                    st.session_state.highlight_category = None
+                    st.rerun()
                 
         if not unique_project_ids:
             st.info("No projects found in this category.")
@@ -1083,19 +1163,32 @@ if st.session_state.get("active_metric_view"):
                     style = L1_STYLE.get(cat, {"color": "green", "hex": "#34D399", "emoji": "🟢", "name": cat})
                     badge_html += f'<span style="display: inline-block; background-color: {style["hex"]}; color: #0F172A; padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; margin-left: 6px; font-family: \'Outfit\';">{style["emoji"]} {style["name"].upper()}</span>'
                 
-                # Render item as a list item without the button column
-                with st.container(border=True):
-                    st.markdown(f"""
-                    <div style="font-family: 'Inter', sans-serif; line-height: 1.5;">
-                        <div style="margin-bottom: 6px;">
-                            <strong>Project:</strong> {p_name} {badge_html} | <strong>ID:</strong> <code>{p_id}</code>
-                        </div>
-                        <div style="font-size: 0.9rem; color: #E2E8F0;">
-                            <strong>ZR Section:</strong> <code>{p_zr}</code> | 
-                            <strong>Sample Category/Categories:</strong> <code>{p_sample}</code>
-                        </div>
+                dim_class = ""
+                if highlight_cat:
+                    is_match = False
+                    for _, row in gp_proj.iterrows():
+                        if str(row.get('Level2', '')).strip().lower() == highlight_cat.strip().lower():
+                            is_match = True
+                            break
+                        for col in ['Level3-1', 'Level3-2', 'Level3-3', 'Level3-4']:
+                            if str(row.get(col, '')).strip().lower() == highlight_cat.strip().lower():
+                                is_match = True
+                                break
+                    if not is_match:
+                        dim_class = "glass-card-dimmed"
+                
+                card_html = f"""
+                <div class="glass-card {dim_class}" style="padding: 16px; margin-bottom: 12px; border: 1px solid rgba(255, 255, 255, 0.08);">
+                    <div style="margin-bottom: 6px; font-family: 'Inter', sans-serif;">
+                        <strong>Project:</strong> {p_name} {badge_html} | <strong>ID:</strong> <code>{p_id}</code>
                     </div>
-                    """, unsafe_allow_html=True)
+                    <div style="font-size: 0.9rem; color: #E2E8F0; font-family: 'Inter', sans-serif; margin-top: 8px;">
+                        <strong>ZR Section:</strong> <code>{p_zr}</code> | 
+                        <strong>Sample Category/Categories:</strong> <code>{p_sample}</code>
+                    </div>
+                </div>
+                """
+                st.markdown(card_html, unsafe_allow_html=True)
 
 # --- 1. SIDEBAR CONFIG ---
 if "logged_in_user" in st.session_state:
@@ -1211,7 +1304,7 @@ if search_mode == "Single-Action Search":
                         st.rerun()
                     st.markdown('</div>', unsafe_allow_html=True)
                 
-                st.markdown(render_category_tree(t_key), unsafe_allow_html=True)
+                show_category_tree(t_key, "single")
 
         sel_l1 = st.session_state.multi_iterations[0]["l1"]
         if sel_l1 != "--":
@@ -1349,7 +1442,7 @@ else:
                     st.rerun()
                 st.markdown('</div>', unsafe_allow_html=True)
             
-            st.markdown(render_category_tree(t_key), unsafe_allow_html=True)
+            show_category_tree(t_key, "search")
 
     if "search_l1_list" not in st.session_state:
         st.session_state.search_l1_list = []
@@ -1976,7 +2069,7 @@ with admin_tabs[1]:
                     st.rerun()
                 st.markdown('</div>', unsafe_allow_html=True)
             
-            st.markdown(render_category_tree(t_key), unsafe_allow_html=True)
+            show_category_tree(t_key, "nominate")
 
     add_l1_list = st.multiselect("Level 1 Categories * (Select one or more)", list(TREE_DATA.keys()), key=f"add_l1_list_{st.session_state.nominate_reset_key}", format_func=format_l1)
 
