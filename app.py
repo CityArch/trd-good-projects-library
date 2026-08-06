@@ -713,10 +713,22 @@ st.markdown(f"""
         height: auto !important;
         min-height: unset !important;
         font-family: 'Fira Code', 'Roboto Mono', monospace !important;
-        font-size: 0.92rem !important;
-        font-weight: 500 !important;
         box-shadow: none !important;
     }}
+    
+    /* Level 2 Parent styling */
+    div:has(div.tree-l2-marker) div.stButton button {{
+        font-weight: 700 !important;
+        font-size: 0.95rem !important;
+    }}
+    
+    /* Level 3 Child styling */
+    div:has(div.tree-l3-marker) div.stButton button {{
+        font-weight: 500 !important;
+        font-size: 0.90rem !important;
+        color: #A5B4FC !important;
+    }}
+    
     div:has(div.tree-wrapper-marker) ~ div[data-testid="stHorizontalBlock"] div.stButton button:hover {{
         color: #FFFFFF !important;
         background: none !important;
@@ -781,7 +793,7 @@ def show_category_tree(l1_key, key_prefix):
     for i, l2 in enumerate(l2_keys):
         is_last_l2 = (i == len(l2_keys) - 1)
         l2_prefix = "└── " if is_last_l2 else "├── "
-        l2_display = l2.replace("_", " ")
+        l2_display = l2.replace("_", " ").upper()
         
         has_l2_projs = False
         if not df_raw.empty:
@@ -791,11 +803,12 @@ def show_category_tree(l1_key, key_prefix):
         with c1:
             st.markdown(f"<span style='font-family: monospace; color: {hex_color}; font-weight: 700;'>{l2_prefix}</span>", unsafe_allow_html=True)
         with c2:
+            st.markdown('<div class="tree-l2-marker"></div>', unsafe_allow_html=True)
             if has_l2_projs:
-                if st.button(l2_display, key=f"tree_l2_{key_prefix}_{l1_key}_{l2}", help=f"Click to view {l2_display} projects"):
+                if st.button(f"📁 {l2_display}", key=f"tree_l2_{key_prefix}_{l1_key}_{l2}", help=f"Click to view {l2_display} projects"):
                     trigger_category_click(l1_key, l2)
             else:
-                st.markdown(f"<span style='color: #64748B; font-family: monospace; font-size: 0.92rem;'>{l2_display}</span>", unsafe_allow_html=True)
+                st.markdown(f"<span style='color: #64748B; font-family: monospace; font-size: 0.92rem; font-weight: 700;'>📁 {l2_display}</span>", unsafe_allow_html=True)
                 
         l3_list = category_data.get(l2, [])
         if l3_list:
@@ -817,11 +830,12 @@ def show_category_tree(l1_key, key_prefix):
                 with c3_1:
                     st.markdown(f"<span style='font-family: monospace; color: #475569; font-weight: 700;'>{l3_branch}{l3_prefix}</span>", unsafe_allow_html=True)
                 with c3_2:
+                    st.markdown('<div class="tree-l3-marker"></div>', unsafe_allow_html=True)
                     if has_l3_projs:
-                        if st.button(l3, key=f"tree_l3_{key_prefix}_{l1_key}_{l2}_{l3}", help=f"Click to view {l3} projects"):
+                        if st.button(f"📄 {l3}", key=f"tree_l3_{key_prefix}_{l1_key}_{l2}_{l3}", help=f"Click to view {l3} projects"):
                             trigger_category_click(l1_key, l3)
                     else:
-                        st.markdown(f"<span style='color: #475569; font-family: monospace; font-size: 0.92rem;'>{l3}</span>", unsafe_allow_html=True)
+                        st.markdown(f"<span style='color: #475569; font-family: monospace; font-size: 0.92rem;'>📄 {l3}</span>", unsafe_allow_html=True)
                         
     st.markdown('</div>', unsafe_allow_html=True)
 
