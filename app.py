@@ -676,8 +676,27 @@ st.markdown(f"""
     div[data-testid="stButton"]:has(a[href="https://dislike-btn"]) button[data-testid="baseButton-primary"] a {{
         color: white !important;
     }}
+    /* Tree layout styling to make columns touch and align */
+    div:has(div.tree-wrapper-marker) ~ div[data-testid="stHorizontalBlock"] {
+        gap: 0px !important;
+        align-items: center !important;
+        margin-top: 0px !important;
+        margin-bottom: 0px !important;
+    }
+    
+    div:has(div.tree-wrapper-marker) ~ div[data-testid="stHorizontalBlock"] div[data-testid="column"] {
+        padding: 0 !important;
+        margin: 0 !important;
+        width: auto !important;
+        flex: none !important;
+    }
+    
+    div:has(div.tree-wrapper-marker) ~ div[data-testid="stHorizontalBlock"] div[data-testid="column"]:first-child {
+        margin-right: 0px !important;
+    }
+    
     /* Tree Clickable Link Styles */
-    .tree-container div[data-testid="column"] div.stButton button {{
+    div:has(div.tree-wrapper-marker) ~ div[data-testid="stHorizontalBlock"] div.stButton button {
         background: none !important;
         border: none !important;
         color: #38BDF8 !important;
@@ -688,23 +707,23 @@ st.markdown(f"""
         height: auto !important;
         min-height: unset !important;
         font-family: 'Fira Code', 'Roboto Mono', monospace !important;
-        font-size: 0.95rem !important;
+        font-size: 0.92rem !important;
         font-weight: 500 !important;
         box-shadow: none !important;
-    }}
-    .tree-container div[data-testid="column"] div.stButton button:hover {{
+    }
+    div:has(div.tree-wrapper-marker) ~ div[data-testid="stHorizontalBlock"] div.stButton button:hover {
         color: #FFFFFF !important;
         background: none !important;
         text-decoration: underline !important;
-    }}
+    }
     
     /* Grayscale/dimmed style for projects in lists that don't match the highlighted category */
-    .glass-card-dimmed {{
+    .glass-card-dimmed {
         opacity: 0.25 !important;
         filter: grayscale(100%) !important;
         border: 1px solid rgba(255, 255, 255, 0.05) !important;
         transition: all 0.3s ease;
-    }}
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -751,7 +770,7 @@ def show_category_tree(l1_key, key_prefix):
     style = L1_STYLE.get(l1_key, {"color": "green", "hex": "#34D399", "emoji": "🟢", "name": l1_key})
     hex_color = style["hex"]
     
-    st.markdown('<div class="tree-container">', unsafe_allow_html=True)
+    st.markdown('<div class="tree-wrapper-marker"></div>', unsafe_allow_html=True)
     
     for i, l2 in enumerate(l2_keys):
         is_last_l2 = (i == len(l2_keys) - 1)
